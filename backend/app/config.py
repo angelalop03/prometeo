@@ -5,6 +5,7 @@ import json
 import os
 import re
 import threading
+import unicodedata
 from pathlib import Path
 
 import yaml
@@ -58,6 +59,37 @@ def architect_prompt() -> str:
 
 def mcp_catalog() -> str:
     return read_md(AGENT_DIR / "mcp-catalog.md")[1]
+
+
+# ---------------- Preguntas frecuentes ----------------
+FAQ_AUDIO_DIR = AGENT_DIR / "faqs-audio"   # grabaciones a mano (opcionales), <id>.wav|mp3|ogg…
+FAQ_CACHE_DIR = ROOT / "backend" / "cache" / "faqs"   # audios generados con Kokoro (fuera de git)
+
+
+def _slug(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text.lower()).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", text).strip("-") or "faq"
+
+
+def load_faqs() -> list[dict]:
+    """agent/faqs.md → [{id, question, answer}]. Cada «## pregunta» va seguida de su respuesta."""
+    try:
+        body = read_md(AGENT_DIR / "faqs.md")[1]
+    except FileNotFoundError:
+        return []
+    out: list[dict] = []
+    seen: set[str] = set()
+    for block in re.split(r"^##\s+", body, flags=re.M)[1:]:
+        question, _, answer = block.partition("\n")
+        question, answer = question.strip(), re.sub(r"\s+", " ", answer).strip()
+        if not question or not answer:
+            continue
+        fid, n = _slug(question), 2
+        while fid in seen:
+            fid, n = f"{_slug(question)}-{n}", n + 1
+        seen.add(fid)
+        out.append({"id": fid, "question": question, "answer": answer})
+    return out
 
 
 # ---------------- Ajustes locales ----------------

@@ -1,6 +1,7 @@
 import { unlockAudio } from './session'
 
 export interface VoiceInfo { name: string; desc: string; gender: 'm' | 'f'; accent: string | null }
+export interface Faq { id: string; question: string; answer: string; recorded: boolean }
 export interface VoiceCfg { voice: string; speed: number; configured: boolean }
 export interface Settings {
   tts_device: 'cpu' | 'cuda'; stt_device: 'cpu' | 'cuda'; whisper_model: string
@@ -37,25 +38,31 @@ export const api = {
   saveSettings: (s: Partial<Settings>) => json<{ settings: Settings; runtime: Runtime }>(put('/api/settings', s)),
   localModels: () => json<LocalModels>(fetch('/api/local-models')),
   saveVoice: (v: Partial<VoiceCfg>) => json<VoiceCfg>(put('/api/voice', v)),
+  faqs: () => json<Faq[]>(fetch('/api/faqs')),
   deleteProject: (slug: string) => json<{ ok: boolean }>(fetch(`/api/projects/${encodeURIComponent(slug)}`, { method: 'DELETE' })),
 }
 
 /**
- * Muestras de voz: Prometeo se presenta con la voz elegida. Pasan por el mismo
+ * Audios sueltos (muestras de voz, respuestas de las FAQ). Pasan por el mismo
  * reproductor que la conversación, así el reactor late con ellas.
  */
 let sampleGen = 0
-export async function playSample(voice: string, speed: number, onEnd: () => void) {
+export async function playAudio(url: string, onEnd: () => void) {
   const gen = ++sampleGen
   const player = await unlockAudio()
   player.stop()
-  const res = await fetch(`/api/voices/${voice}/sample?speed=${speed}`)
+  const res = await fetch(url)
   if (!res.ok) throw new Error(`${res.status}`)
   const buf = await res.arrayBuffer()
   if (gen !== sampleGen) return
   player.onPlayingChange = (on) => { if (!on && gen === sampleGen) onEnd() }
   player.enqueue(buf)
 }
+/** Muestra de voz: Prometeo se presenta con esa voz. */
+export const playSample = (voice: string, speed: number, onEnd: () => void) =>
+  playAudio(`/api/voices/${voice}/sample?speed=${speed}`, onEnd)
+/** Respuesta pregrabada de una pregunta frecuente. */
+export const playFaq = (id: string, onEnd: () => void) => playAudio(`/api/faqs/${encodeURIComponent(id)}/audio`, onEnd)
 export async function stopSample() {
   sampleGen++
   ;(await unlockAudio()).stop()

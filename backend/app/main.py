@@ -4,17 +4,19 @@ from __future__ import annotations
 import asyncio
 import json
 import contextlib
+import hashlib
 import logging
 import threading
 
 import numpy as np
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import local, projects
 from .brain import HANDOFF_TOOL, Brain, run_architect, suggest_title
-from .config import CHOICES, FRONTEND_DIST, PROJECTS_DIR, agent_meta, load_settings, load_voice, save_settings, save_voice
+from .config import (CHOICES, FAQ_AUDIO_DIR, FAQ_CACHE_DIR, FRONTEND_DIST, PROJECTS_DIR, agent_meta, load_faqs,
+                     load_settings, load_voice, save_settings, save_voice)
 from .speech import SAMPLE_TEXT, STT, TTS, VOICES, SentenceSplitter, capabilities
 
 log = logging.getLogger("prometeo")
@@ -147,6 +149,63 @@ async def voice_sample(voice: str, speed: float = 1.0):
             raise HTTPException(500, "No se pudo generar el audio")
         _samples[key] = wav
     return Response(_samples[key], media_type="audio/wav")
+
+
+# ---------------- Preguntas frecuentes ----------------
+_FAQ_TYPES = {".wav": "audio/wav", ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".m4a": "audio/mp4", ".webm": "audio/webm"}
+_faq_locks: dict[str, asyncio.Lock] = {}
+
+
+def _recorded(fid: str):
+    """Grabación hecha a mano para esa pregunta (agent/faqs-audio/<id>.wav|mp3|…), si la hay."""
+    return next((p for ext in _FAQ_TYPES if (p := FAQ_AUDIO_DIR / f"{fid}{ext}").is_file()), None)
+
+
+def _faq_cache(faq: dict, voice: str, speed: float):
+    # La clave incluye texto, voz y velocidad: si cambian, se genera otra vez
+    key = hashlib.sha1(f"{faq['answer']}|{voice}|{speed}".encode()).hexdigest()[:12]
+    return FAQ_CACHE_DIR / f"{faq['id']}-{key}.wav"
+
+
+async def _faq_audio(faq: dict):
+    if rec := _recorded(faq["id"]):
+        return rec
+    v = load_voice()
+    path = _faq_cache(faq, v["voice"], float(v["speed"]))
+    if path.exists():
+        return path
+    async with _faq_locks.setdefault(faq["id"], asyncio.Lock()):
+        if path.exists():
+            return path
+        wav = await asyncio.to_thread(tts().wav, faq["answer"], v["voice"], v["speed"])
+        if not wav:
+            return None
+        FAQ_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        for old in FAQ_CACHE_DIR.glob(f"{faq['id']}-*.wav"):  # versiones de otra voz o texto
+            old.unlink(missing_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_bytes(wav)
+        tmp.replace(path)
+        return path
+
+
+@app.get("/api/faqs")
+def list_faqs():
+    """Preguntas de agent/faqs.md. recorded=true si tienen grabación propia."""
+    return [{**f, "recorded": _recorded(f["id"]) is not None} for f in load_faqs()]
+
+
+@app.get("/api/faqs/{fid}/audio")
+async def faq_audio(fid: str):
+    """Respuesta de Prometeo en audio: la grabación propia o la generada con Kokoro (cacheada en disco)."""
+    faq = next((f for f in load_faqs() if f["id"] == fid), None)
+    if not faq:
+        raise HTTPException(404, "Pregunta desconocida")
+    path = await _faq_audio(faq)
+    if not path:
+        raise HTTPException(500, "No se pudo generar el audio")
+    return FileResponse(path, media_type=_FAQ_TYPES.get(path.suffix, "audio/wav"),
+                        headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/api/projects")

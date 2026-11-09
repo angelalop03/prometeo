@@ -15,6 +15,7 @@ Abre **http://localhost:5173**. Usa auriculares para que PROMETEO no se escuche 
 | `agent/agent.md` | **Entrevistador**: identidad, método y preguntas de PROMETEO (rápido, habla contigo) |
 | `agent/arquitecto.md` | **Arquitecto**: modelo profundo que analiza lo recabado y escribe los entregables en segundo plano |
 | `agent/mcp-catalog.md` | Servidores MCP que el entrevistador puede recomendar según el proyecto |
+| `agent/faqs.md` | **Preguntas frecuentes** (vista FAQ): cada `## pregunta` con su respuesta. Prometeo la dice con un audio pregrabado: `agent/faqs-audio/<id>.wav\|mp3\|ogg` si lo grabas tú, o uno generado con Kokoro una sola vez (en `backend/cache/faqs/`, se rehace si cambias la voz o el texto) |
 | `agent/voice.md` | Voz **por defecto** (Kokoro). La elegida en cada ordenador va a `settings.local.json` |
 | `settings.local.json` | Ajustes de esta máquina (voz, CPU/GPU, modelo de Whisper, de Claude o local). No se versiona |
 | `agent/skills/*/SKILL.md` | Skills: `crear-prompt`, `documentar-plan`, `desglosar-tareas`, `resumen-notas` |
@@ -65,4 +66,4 @@ Las antiguas `ORION_*` siguen funcionando como alternativa.
 ## Volver a la primera configuración
 Ajustes → «Repetir primera configuración» (o borra `settings.local.json`).
 
-Rutas: `http://localhost:5173/#/inicio|proyectos|voces|ajustes|voz|comenzar|conversacion[/slug]`. Atrás/adelante del navegador funcionan.
+Rutas: `http://localhost:5173/#/inicio|proyectos|voces|ajustes|faq|voz|comenzar|conversacion[/slug]`. Atrás/adelante del navegador funcionan.

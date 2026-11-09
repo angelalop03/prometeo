@@ -319,6 +319,25 @@ input[type='range'] { accent-color: var(--cyan); width: 160px; }
 .vactions .btn { flex: 1; min-width: 0; padding: 10px 8px; letter-spacing: 0.12em; white-space: nowrap; }
 .vactions .btn:first-child { flex: 1.4; }
 
+/* Preguntas frecuentes */
+.faqs { gap: 8px; }
+.faq { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); backdrop-filter: blur(10px); transition: border-color 0.2s, box-shadow 0.2s; }
+.faq.open { border-color: var(--cyan); }
+.faq.playing { box-shadow: 0 0 22px rgba(79, 209, 255, 0.4); }
+.faq-q {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: 0; background: none;
+  color: var(--text); text-align: left; cursor: pointer; font: inherit;
+}
+.faq-q:disabled { cursor: progress; }
+.faq-q:focus-visible { outline: 1px solid var(--cyan); outline-offset: -1px; border-radius: 6px; }
+.faq-q .title { flex: 1; min-width: 0; font: 600 15px var(--font-hud); letter-spacing: 0.04em; }
+.faq-q .chip { margin: 0; }
+.faq-act { font: 500 11px var(--font-hud); letter-spacing: 0.16em; color: var(--cyan); white-space: nowrap; }
+.faq:not(.open):not(.playing) .faq-act { color: var(--text-dim); }
+.faq-q:hover .faq-act { color: var(--cyan); }
+.faq-a { margin: 0; padding: 0 16px 16px; font-size: 14px; line-height: 1.55; color: var(--text); }
+.faq-a .who { display: block; margin-bottom: 4px; font: 500 10px var(--font-hud); letter-spacing: 0.2em; color: var(--text-dim); }
+
 /* Ajustes */
 .settings section { padding: 18px 20px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); backdrop-filter: blur(10px); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 10px 0; flex-wrap: wrap; }
@@ -363,6 +382,7 @@ input[type='range'] { accent-color: var(--cyan); width: 160px; }
 }
 @media (max-width: 760px) {
   .topleft { left: 16px; top: 16px; gap: 10px; flex-direction: column; align-items: flex-start; }
+  .nav { flex-wrap: wrap; }
   .nav button { padding: 6px 7px; font-size: 10px; letter-spacing: 0.14em; }
   .status { right: 16px; top: 22px; }
   .page { top: 96px; bottom: 16px; }

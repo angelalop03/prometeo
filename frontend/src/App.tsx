@@ -7,7 +7,7 @@ import CosmicButton from './ui/CosmicButton'
 import { installCosmicInteractions } from './ui/cosmic'
 import { locale, t, useLang, type Lang } from './i18n'
 import { unlockAudio, useSession, type Artifact, type Msg, type ProjectMeta } from './session'
-import { api, playSample, stopSample, type AppState, type LocalModels, type Settings, type VoiceInfo } from './api'
+import { api, playFaq, playSample, stopSample, type AppState, type Faq, type LocalModels, type Settings, type VoiceInfo } from './api'
 
 type View =
   | { name: 'loading' }
@@ -17,11 +17,12 @@ type View =
   | { name: 'proyectos' }
   | { name: 'voces' }
   | { name: 'ajustes' }
+  | { name: 'faq' }
   | { name: 'conversacion'; project: string | null; key: number }
 
-const SIMPLE = ['comenzar', 'voz', 'inicio', 'proyectos', 'voces', 'ajustes'] as const
+const SIMPLE = ['comenzar', 'voz', 'inicio', 'proyectos', 'voces', 'ajustes', 'faq'] as const
 
-/** Rutas: #/inicio, #/proyectos, #/voces, #/ajustes, #/voz, #/comenzar, #/conversacion[/slug] */
+/** Rutas: #/inicio, #/proyectos, #/voces, #/ajustes, #/faq, #/voz, #/comenzar, #/conversacion[/slug] */
 function parseHash(): View | null {
   const raw = location.hash.replace(/^#\/?/, '')
   // Compatibilidad con el atajo antiguo: #view=conversacion&project=slug
@@ -111,6 +112,7 @@ export default function App() {
             onReset={() => go({ name: 'comenzar' })}
           />
         )}
+        {view.name === 'faq' && <Faqs setReactor={setReactor} />}
         {view.name === 'conversacion' && <Conversacion key={view.key} project={view.project} setReactor={setReactor} />}
         </ViewBoundary>
       </div>
@@ -142,6 +144,7 @@ const NAV = [
   { name: 'proyectos', label: 'nav.projects' },
   { name: 'voces', label: 'nav.voices' },
   { name: 'ajustes', label: 'nav.settings' },
+  { name: 'faq', label: 'nav.faq' },
 ] as const
 
 function Nav({ current, go }: { current: View['name']; go: (v: View) => void }) {
@@ -391,6 +394,65 @@ function Voces({ setReactor, onFirstChoice }: { setReactor: SetReactor; onFirstC
         ))}
       </div>
       {toast && <div className="toast info">{toast}</div>}
+    </div>
+  )
+}
+
+/* ---------------- 08 · Preguntas frecuentes ---------------- */
+function Faqs({ setReactor }: { setReactor: SetReactor }) {
+  const [list, setList] = useState<Faq[] | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
+  const [playing, setPlaying] = useState<string | null>(null)
+  const [pending, setPending] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.faqs().then(setList).catch(() => { setList([]); setToast(t('faqError')) })
+    return () => { void stopSample() }
+  }, [])
+  useEffect(() => {
+    setReactor({ variant: playing ? 'escuchando' : 'reposo', energy: playing ? 'speaking' : 'idle', offsetY: -230, scale: 0.9 })
+  }, [playing, setReactor])
+
+  const ask = async (id: string) => {
+    setOpen(id)
+    if (playing === id) { setPlaying(null); await stopSample(); return }
+    setPending(id)
+    try {
+      await playFaq(id, () => setPlaying((p) => (p === id ? null : p)))
+      setPlaying(id)
+    } catch {
+      setPlaying(null)
+      setToast(t('faqError'))
+      setTimeout(() => setToast(null), 3000)
+    } finally {
+      setPending((p) => (p === id ? null : p))
+    }
+  }
+
+  return (
+    <div className="page">
+      <div className="page-head"><h2>{t('faqTitle')}</h2></div>
+      <p className="intro">{t('faqIntro')}</p>
+      <div className="list faqs">
+        {list === null && <p className="empty">{t('loading')}</p>}
+        {list?.length === 0 && <p className="empty">{t('faqEmpty')}</p>}
+        {list?.map((f) => {
+          const isOpen = open === f.id
+          const isPlaying = playing === f.id
+          return (
+            <div key={f.id} className={`faq ${isOpen ? 'open' : ''} ${isPlaying ? 'playing' : ''}`}>
+              <button className="faq-q" onClick={() => ask(f.id)} aria-expanded={isOpen} aria-pressed={isPlaying} disabled={pending === f.id}>
+                <span className="title">{f.question}</span>
+                {f.recorded && <span className="chip">{t('faqRecorded')}</span>}
+                <span className="faq-act">{pending === f.id ? '…' : isPlaying ? `■ ${t('stop')}` : `▶ ${t('faqAsk')}`}</span>
+              </button>
+              {isOpen && <p className="faq-a" aria-live="polite"><span className="who">PROMETEO</span>{f.answer}</p>}
+            </div>
+          )
+        })}
+      </div>
+      {toast && <div className="toast">{toast}</div>}
     </div>
   )
 }
