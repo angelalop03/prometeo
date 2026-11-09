@@ -1,0 +1,32 @@
+---
+name: crear-prompt
+description: Genera un prompt optimizado para otra IA (Claude, GPT, Midjourney, Claude Code...) a partir del plan acordado en la conversación y lo guarda en prompt.md. Úsala cuando la persona pida "dame el prompt", "crea un prompt" o elija el prompt como entregable.
+---
+# Crear prompt
+
+Escribe `prompt.md` en el directorio de trabajo actual.
+
+## Estructura del archivo
+```markdown
+# Prompt — <título del proyecto>
+
+> Destino: <IA o herramienta para la que es el prompt>
+
+## Prompt
+<el prompt completo, listo para copiar y pegar>
+
+## Cómo usarlo
+<1-3 líneas: dónde pegarlo, qué ajustar>
+```
+
+## Cómo escribir el prompt
+1. **Rol**: quién debe ser la IA (ej. "Eres un desarrollador senior de React...").
+2. **Contexto**: el objetivo y las restricciones acordadas, con datos concretos de la conversación.
+3. **Tarea**: qué debe producir, paso a paso si hay varias partes.
+4. **Restricciones**: lo que NO debe hacer (alcance excluido), estilo, límites.
+5. **Formato de salida**: estructura exacta esperada.
+
+Sé específico: usa los nombres, cifras y decisiones reales de la conversación. Si no se sabe a qué IA va dirigido, escríbelo genérico para un LLM.
+Si ya existe `prompt.md`, actualízalo en vez de duplicarlo.
+
+Después, en la respuesta hablada, di solo en una frase que el prompt está listo.

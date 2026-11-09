@@ -1,0 +1,22 @@
+[project]
+name = "orion-backend"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "claude-agent-sdk>=0.2.179",
+    "fastapi>=0.162.2",
+    "faster-whisper>=1.2.1",
+    "kokoro-onnx>=0.6.1",
+    "numpy>=2.5.4",
+    "pyyaml>=6.0.3",
+    "soundfile>=0.14.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+orion-backend = "orion_backend:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
