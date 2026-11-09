@@ -21,13 +21,16 @@ from claude_agent_sdk import (
 )
 
 from . import projects
-from .config import AGENT_DIR, env, agent_prompt, mode_prompt, save_voice
+from .config import AGENT_DIR, agent_prompt, architect_prompt, load_settings, mcp_catalog, mode_prompt, save_voice
 from .speech import VOICES
 
 # Nunca usar una API key aunque exista en el entorno: queremos la suscripción.
 os.environ.pop("ANTHROPIC_API_KEY", None)
 
 FILE_TOOLS = ["Read", "Write", "Edit", "Glob"]
+READ_TOOLS = ["Read", "Glob"]
+DELIVERABLES = ("prompt", "plan", "tareas", "notas")
+HANDOFF_TOOL = "mcp__prometeo__encargar_entregables"
 PROMETEO_SKILLS = sorted(f"prometeo:{d.name}" for d in (AGENT_DIR / "skills").iterdir() if (d / "SKILL.md").exists())
 
 
@@ -52,25 +55,39 @@ def _path_guard(root: Path):
     return guard
 
 
+def _tool_event(b: ToolUseBlock) -> dict:
+    return {"type": "tool", "name": b.name,
+            "file": Path(b.input.get("file_path", "")).name or None,
+            "skill": b.input.get("skill") or b.input.get("command")}
+
+
 class Brain:
-    """Una conversación con Claude. mode = 'plan' (proyecto) | 'voz' (definir voz)."""
+    """El entrevistador: la conversación rápida con la persona.
+    mode = 'plan' (proyecto) | 'voz' (definir voz).
+    En modo plan no escribe entregables: los encarga al Arquitecto con on_handoff."""
 
     def __init__(self, mode: str, slug: str | None = None,
-                 on_event: Callable[[dict], Any] | None = None) -> None:
+                 on_event: Callable[[dict], Any] | None = None,
+                 on_handoff: Callable[[list[str], str], Any] | None = None) -> None:
         self.mode = mode
         self.slug = slug
         self.on_event = on_event or (lambda e: None)
+        self.on_handoff = on_handoff
         self.client: ClaudeSDKClient | None = None
         self._dirty = False
+        self.notes: list[str] = []  # avisos del Arquitecto para el próximo mensaje
 
     def _options(self) -> ClaudeAgentOptions:
         # Sonnet + effort bajo: ~1 s hasta la primera palabra (Opus tarda 4-30 s, demasiado para voz).
+        st = load_settings()
         common = dict(setting_sources=[], include_partial_messages=True,
-                      model=env("MODEL", "sonnet"),
-                      effort=env("EFFORT", "low"))
+                      model=st["claude_model"], effort=st["effort"])
 
         if self.mode == "voz":
-            @tool("set_voice", "Cambia la voz de PROMETEO en vivo. voice: em_alex | em_santa | ef_dora. speed: 0.8-1.3",
+            catalog = "; ".join(f"{k} = {v['desc'].lower()}" + (f", acento {v['accent']}" if v["accent"] else ", nativa")
+                                for k, v in VOICES.items())
+
+            @tool("set_voice", f"Cambia la voz de PROMETEO en vivo. speed: 0.8-1.3. Voces: {catalog}",
                   {"voice": str, "speed": float})
             async def set_voice(args: dict) -> dict:
                 v = args.get("voice") if args.get("voice") in VOICES else None
@@ -100,14 +117,34 @@ class Brain:
         guard = _path_guard(pdir)
         ctx = (f"\n\n# Contexto de la sesión\n- Fecha: {date.today():%d/%m/%Y}\n"
                f"- Proyecto: «{meta['title']}». Carpeta de trabajo: {pdir}\n"
-               f"- Solo puedes leer y escribir archivos dentro de esa carpeta.")
+               f"- Solo puedes leer archivos dentro de esa carpeta.")
+
+        @tool("encargar_entregables",
+              "Encarga al Arquitecto (modelo profundo, en segundo plano) que escriba los entregables. "
+              "Vuelve al instante; los archivos aparecen cuando termina.",
+              {"type": "object", "properties": {
+                  "entregables": {"type": "array", "items": {"type": "string", "enum": list(DELIVERABLES)},
+                                  "description": "Qué entregables escribir"},
+                  "brief": {"type": "string", "description": "Resumen denso y fiel de todo lo recabado"},
+              }, "required": ["entregables", "brief"]})
+        async def encargar(args: dict) -> dict:
+            items = [e for e in (args.get("entregables") or []) if e in DELIVERABLES]
+            if not items:
+                msg = "Indica al menos un entregable: prompt, plan, tareas o notas."
+            elif self.on_handoff is None:
+                msg = "El Arquitecto no está disponible."
+            else:
+                msg = await self.on_handoff(items, str(args.get("brief") or ""))
+            return {"content": [{"type": "text", "text": msg}]}
+
+        server = create_sdk_mcp_server("prometeo", tools=[encargar])
         return ClaudeAgentOptions(
-            system_prompt=agent_prompt() + ctx,
-            tools=FILE_TOOLS + ["Skill"], allowed_tools=FILE_TOOLS,
-            plugins=[{"type": "local", "path": str(AGENT_DIR)}], skills=PROMETEO_SKILLS,
-            permission_mode="acceptEdits", cwd=str(pdir), resume=meta.get("session_id"),
-            hooks={"PreToolUse": [HookMatcher(matcher="Read|Write|Edit|Glob", hooks=[guard])]},
-            max_turns=20, **common,
+            system_prompt=agent_prompt() + "\n\n" + mcp_catalog() + ctx,
+            mcp_servers={"prometeo": server},
+            tools=READ_TOOLS, allowed_tools=READ_TOOLS + [HANDOFF_TOOL],
+            cwd=str(pdir), resume=meta.get("session_id"),
+            hooks={"PreToolUse": [HookMatcher(matcher="Read|Glob", hooks=[guard])]},
+            max_turns=10, **common,
         )
 
     async def start(self) -> None:
@@ -126,6 +163,9 @@ class Brain:
             except TimeoutError:
                 pass
             self._dirty = False
+        if self.notes:
+            text = "".join(f"[sistema: {n}]\n" for n in self.notes) + text
+            self.notes.clear()
         await self.client.query(text)
         said_any = False
         async for msg in self.client.receive_response():
@@ -139,9 +179,7 @@ class Brain:
             elif isinstance(msg, AssistantMessage):
                 for b in msg.content:
                     if isinstance(b, ToolUseBlock):
-                        yield {"type": "tool", "name": b.name,
-                               "file": Path(b.input.get("file_path", "")).name or None,
-                               "skill": b.input.get("skill") or b.input.get("command")}
+                        yield _tool_event(b)
             elif isinstance(msg, ResultMessage):
                 if self.mode == "plan" and msg.session_id:
                     projects.update_meta(self.slug, session_id=msg.session_id)
@@ -162,6 +200,48 @@ class Brain:
             except Exception:
                 pass
             self.client = None
+
+
+async def run_architect(slug: str, entregables: list[str], brief: str,
+                        on_event: Callable[[dict], Any]) -> str:
+    """El Arquitecto: modelo profundo que analiza lo recabado y escribe los entregables.
+    Corre en segundo plano, fuera del turno de voz. Devuelve su frase final de resumen."""
+    st = load_settings()
+    pdir = projects.project_dir(slug)
+    meta = projects.get_meta(slug)
+    (pdir / "brief.md").write_text(f"# Brief — {date.today():%d/%m/%Y}\n\nEntregables: {', '.join(entregables)}\n\n{brief.strip()}\n",
+                                   encoding="utf-8")
+    ctx = (f"\n\n# Contexto de la sesión\n- Fecha: {date.today():%d/%m/%Y}\n"
+           f"- Proyecto: «{meta['title']}». Carpeta de trabajo: {pdir}\n"
+           f"- Solo puedes leer y escribir archivos dentro de esa carpeta.")
+    opts = ClaudeAgentOptions(
+        system_prompt=architect_prompt() + ctx,
+        setting_sources=[], model=st["architect_model"], effort=st["architect_effort"],
+        tools=FILE_TOOLS + ["Skill"], allowed_tools=FILE_TOOLS,
+        plugins=[{"type": "local", "path": str(AGENT_DIR)}], skills=PROMETEO_SKILLS,
+        permission_mode="acceptEdits", cwd=str(pdir), resume=meta.get("architect_session_id"),
+        hooks={"PreToolUse": [HookMatcher(matcher="Read|Write|Edit|Glob", hooks=[_path_guard(pdir)])]},
+        max_turns=40,
+    )
+    task = (f"Entregables pedidos: {', '.join(entregables)}.\n"
+            f"El brief está en brief.md y la conversación completa en conversacion.md.\n\n{brief.strip()}")
+    final = ""
+    async with ClaudeSDKClient(options=opts) as c:
+        await c.query(task)
+        async for m in c.receive_response():
+            if isinstance(m, AssistantMessage):
+                text = "".join(getattr(b, "text", "") for b in m.content).strip()
+                if text:
+                    final = text
+                for b in m.content:
+                    if isinstance(b, ToolUseBlock):
+                        await on_event(_tool_event(b))
+            elif isinstance(m, ResultMessage):
+                if m.session_id:
+                    projects.update_meta(slug, architect_session_id=m.session_id)
+                if m.is_error:
+                    raise RuntimeError(m.result or "error del Arquitecto")
+    return final
 
 
 async def suggest_title(text: str) -> str | None:

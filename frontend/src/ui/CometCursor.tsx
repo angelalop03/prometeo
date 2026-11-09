@@ -6,6 +6,8 @@ interface Spark { x: number; y: number; vx: number; vy: number; life: number; si
 
 const MAX_TRAIL = 70
 const MAX_SPARKS = 160
+/** Desplazamiento máximo (px) del cometa hacia el centro del botón bajo el cursor. */
+const MAX_PULL = 4
 
 /**
  * Cursor cometa: cabeza brillante con cola que se alarga con la velocidad.
@@ -71,9 +73,15 @@ export default function CometCursor() {
       let gx = p.x, gy = p.y
       const tg = cursorBus.target
       if (tg && !text) {
+        // Limitada a unos px: en elementos grandes (tarjetas) el tirón proporcional
+        // separaba el cometa del punto real de clic y hacía difícil acertar botones pequeños.
         const r = tg.getBoundingClientRect()
-        gx += (r.left + r.width / 2 - p.x) * 0.12
-        gy += (r.top + r.height / 2 - p.y) * 0.12
+        const ox = (r.left + r.width / 2 - p.x) * 0.12
+        const oy = (r.top + r.height / 2 - p.y) * 0.12
+        const m = Math.hypot(ox, oy)
+        const s = m > MAX_PULL ? MAX_PULL / m : 1
+        gx += ox * s
+        gy += oy * s
       }
       const px = head.x, py = head.y
       const k = still ? 1 : tg ? 0.5 : 0.36

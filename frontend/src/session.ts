@@ -26,6 +26,7 @@ const TOOL_LABELS: Record<string, () => string> = {
   'prometeo:documentar-plan': () => t('tool.documentar-plan'),
   'prometeo:desglosar-tareas': () => t('tool.desglosar-tareas'),
   'prometeo:resumen-notas': () => t('tool.resumen-notas'),
+  mcp__prometeo__encargar_entregables: () => t('tool.handoff'),
   mcp__prometeo__set_project_title: () => t('tool.title'),
   mcp__prometeo__set_voice: () => t('tool.voice'),
   mcp__prometeo__finish_voice_setup: () => t('tool.voiceSaved'),
@@ -137,6 +138,13 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
         case 'artifacts':
           setArtifacts(d.artifacts)
           break
+        case 'architect': {
+          // El Arquitecto trabaja en segundo plano: su estado se anota en el último mensaje.
+          const label = d.state === 'working' ? t('architect.working') : d.state === 'done' ? t('architect.done') : t('architect.error')
+          appendAgent((m) => ({ ...m, tools: [...m.tools, label] }))
+          if (d.state === 'error') { setError(d.summary); setTimeout(() => setError(null), 6000) }
+          break
+        }
         case 'voice_setup_done':
           setVoiceDone(true)
           break

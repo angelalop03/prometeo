@@ -1,0 +1,54 @@
+import { unlockAudio } from './session'
+
+export interface VoiceInfo { name: string; desc: string; gender: 'm' | 'f'; accent: string | null }
+export interface VoiceCfg { voice: string; speed: number; configured: boolean }
+export interface Settings { tts_device: 'cpu' | 'cuda'; stt_device: 'cpu' | 'cuda'; whisper_model: string; claude_model: string; effort: string; architect_model: string; architect_effort: string }
+export interface Runtime {
+  tts: { device: string; error: string | null } | null
+  stt: { device: string; model: string; error: string | null } | null
+  loading: string[]
+}
+export interface AppState {
+  voice: VoiceCfg
+  voices: Record<string, VoiceInfo>
+  settings: Settings
+  choices: Record<keyof Settings, string[]>
+  capabilities: { tts_cuda: boolean; stt_cuda: boolean }
+  runtime: Runtime
+}
+
+async function json<T>(r: Promise<Response>): Promise<T> {
+  const res = await r
+  if (!res.ok) throw new Error(`${res.status}`)
+  return res.json() as Promise<T>
+}
+const put = (url: string, body: object) =>
+  fetch(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+
+export const api = {
+  state: () => json<AppState>(fetch('/api/state')),
+  saveSettings: (s: Partial<Settings>) => json<{ settings: Settings; runtime: Runtime }>(put('/api/settings', s)),
+  saveVoice: (v: Partial<VoiceCfg>) => json<VoiceCfg>(put('/api/voice', v)),
+  deleteProject: (slug: string) => json<{ ok: boolean }>(fetch(`/api/projects/${encodeURIComponent(slug)}`, { method: 'DELETE' })),
+}
+
+/**
+ * Muestras de voz: Prometeo se presenta con la voz elegida. Pasan por el mismo
+ * reproductor que la conversación, así el reactor late con ellas.
+ */
+let sampleGen = 0
+export async function playSample(voice: string, speed: number, onEnd: () => void) {
+  const gen = ++sampleGen
+  const player = await unlockAudio()
+  player.stop()
+  const res = await fetch(`/api/voices/${voice}/sample?speed=${speed}`)
+  if (!res.ok) throw new Error(`${res.status}`)
+  const buf = await res.arrayBuffer()
+  if (gen !== sampleGen) return
+  player.onPlayingChange = (on) => { if (!on && gen === sampleGen) onEnd() }
+  player.enqueue(buf)
+}
+export async function stopSample() {
+  sampleGen++
+  ;(await unlockAudio()).stop()
+}

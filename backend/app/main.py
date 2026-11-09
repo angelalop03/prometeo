@@ -5,15 +5,17 @@ import asyncio
 import json
 import contextlib
 import logging
+import threading
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from . import projects
-from .brain import Brain, suggest_title
-from .config import FRONTEND_DIST, PROJECTS_DIR, agent_meta, load_voice
-from .speech import STT, TTS, VOICES, SentenceSplitter
+from .brain import HANDOFF_TOOL, Brain, run_architect, suggest_title
+from .config import CHOICES, FRONTEND_DIST, PROJECTS_DIR, agent_meta, load_settings, load_voice, save_settings, save_voice
+from .speech import SAMPLE_TEXT, STT, TTS, VOICES, SentenceSplitter, capabilities
 
 log = logging.getLogger("prometeo")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -23,38 +25,122 @@ PROJECTS_DIR.mkdir(exist_ok=True)
 
 _stt: STT | None = None
 _tts: TTS | None = None
+_stt_lock, _tts_lock = threading.Lock(), threading.Lock()
+_loading: set[str] = set()
+# Trabajos del Arquitecto: siguen aunque se cierre la pestaña, para que los archivos se escriban.
+_jobs: dict[str, asyncio.Task] = {}
 
 
 def stt() -> STT:
     global _stt
-    if _stt is None:
-        _stt = STT()
-    return _stt
+    with _stt_lock:
+        if _stt is None:
+            st = load_settings()
+            _stt = STT(st["stt_device"], st["whisper_model"])
+        return _stt
 
 
 def tts() -> TTS:
     global _tts
-    if _tts is None:
-        _tts = TTS()
-    return _tts
+    with _tts_lock:
+        if _tts is None:
+            _tts = TTS(load_settings()["tts_device"])
+        return _tts
+
+
+async def _reload(which: str) -> None:
+    """Recarga un modelo con los ajustes nuevos sin cortar el servicio: el viejo
+    sigue atendiendo hasta que el nuevo está listo."""
+    global _stt, _tts
+    _loading.add(which)
+    try:
+        st = load_settings()
+        if which == "tts":
+            new = await asyncio.to_thread(TTS, st["tts_device"])
+            await asyncio.to_thread(new.wav, "Hola.", load_voice()["voice"], 1.0)
+            _tts = new
+        else:
+            _stt = await asyncio.to_thread(STT, st["stt_device"], st["whisper_model"])
+        log.info("Modelo %s recargado", which)
+    except Exception:  # noqa: BLE001
+        log.exception("No se pudo recargar %s", which)
+    finally:
+        _loading.discard(which)
+        _samples.clear()
 
 
 @app.on_event("startup")
 async def warmup() -> None:
     # Carga los modelos en segundo plano para que la primera frase no tarde.
     async def _load():
-        await asyncio.to_thread(tts)
-        await asyncio.to_thread(tts().wav, "Hola.", load_voice()["voice"], 1.0)
-        await asyncio.to_thread(stt)
-        log.info("Modelos de voz listos")
+        _loading.update({"tts", "stt"})
+        try:
+            await asyncio.to_thread(tts)
+            await asyncio.to_thread(tts().wav, "Hola.", load_voice()["voice"], 1.0)
+            _loading.discard("tts")
+            await asyncio.to_thread(stt)
+            log.info("Modelos de voz listos")
+        finally:
+            _loading.clear()
     asyncio.create_task(_load())
 
 
 # ---------------- REST ----------------
+def _runtime() -> dict:
+    return {
+        "tts": {"device": _tts.device, "error": _tts.error} if _tts else None,
+        "stt": {"device": _stt.device, "model": _stt.size, "error": _stt.error} if _stt else None,
+        "loading": sorted(_loading),
+    }
+
+
 @app.get("/api/state")
 def state():
     return {"agent": agent_meta(), "voice": load_voice(), "voices": VOICES,
-            "models_ready": _stt is not None and _tts is not None}
+            "settings": load_settings(), "choices": CHOICES, "capabilities": capabilities(),
+            "runtime": _runtime(), "models_ready": _stt is not None and _tts is not None}
+
+
+@app.put("/api/settings")
+async def put_settings(data: dict = Body(...)):
+    before = load_settings()
+    after = save_settings(**data)
+    changed = {"tts": after["tts_device"] != before["tts_device"],
+               "stt": any(after[k] != before[k] for k in ("stt_device", "whisper_model"))}
+    for which in (w for w, c in changed.items() if c):
+        _loading.add(which)  # visible ya en esta respuesta
+        asyncio.create_task(_reload(which))
+    return {"settings": after, "runtime": _runtime()}
+
+
+@app.put("/api/voice")
+def put_voice(data: dict = Body(...)):
+    """Elección manual de voz (catálogo / ajustes). configured=false vuelve a la primera configuración."""
+    voice = data.get("voice")
+    if voice is not None and voice not in VOICES:
+        raise HTTPException(400, "Voz desconocida")
+    speed = data.get("speed")
+    if speed is not None:
+        speed = round(min(1.3, max(0.8, float(speed))), 2)
+    configured = data.get("configured")
+    return save_voice(voice=voice, speed=speed, configured=bool(configured) if configured is not None else None)
+
+
+_samples: dict[tuple[str, float], bytes] = {}
+
+
+@app.get("/api/voices/{voice}/sample")
+async def voice_sample(voice: str, speed: float = 1.0):
+    """Prometeo se presenta con esa voz (WAV). Se cachea por voz y velocidad."""
+    if voice not in VOICES:
+        raise HTTPException(404, "Voz desconocida")
+    key = (voice, round(min(1.3, max(0.8, speed)), 2))
+    if key not in _samples:
+        wav = await asyncio.to_thread(tts().wav, SAMPLE_TEXT, *key)
+        if not wav:
+            raise HTTPException(500, "No se pudo generar el audio")
+        _samples[key] = wav
+    return Response(_samples[key], media_type="audio/wav")
 
 
 @app.get("/api/projects")
@@ -69,6 +155,15 @@ def get_project(slug: str):
                 "conversation": projects.conversation(slug)}
     except (FileNotFoundError, ValueError):
         raise HTTPException(404, "Proyecto no encontrado")
+
+
+@app.delete("/api/projects/{slug}")
+def delete_project(slug: str):
+    try:
+        projects.delete(slug)
+    except (FileNotFoundError, ValueError):
+        raise HTTPException(404, "Proyecto no encontrado")
+    return {"ok": True}
 
 
 # ---------------- Sesión WebSocket ----------------
@@ -91,13 +186,14 @@ def _meaningful(text: str) -> bool:
 class Session:
     """Protocolo:
     cliente → {"type":"text","text"} | {"type":"interrupt"} | binario Float32 PCM 16 kHz (una frase)
-    servidor → ready, state, transcript, delta, tool, project, artifacts, voice, voice_setup_done, turn_end, error
+    servidor → ready, state, transcript, delta, tool, project, artifacts, architect, voice, voice_setup_done, turn_end, error
                + binario WAV (una frase de voz) precedido de {"type":"audio","turn":n}
     """
 
     def __init__(self, ws: WebSocket, mode: str, slug: str | None) -> None:
         self.ws, self.mode, self.slug = ws, mode, slug
-        self.brain = Brain("voz" if mode == "voz" else "plan", slug, on_event=self.send)
+        self.brain = Brain("voz" if mode == "voz" else "plan", slug, on_event=self.send, on_handoff=self.handoff)
+        self.closed = False
         self.turn = 0
         self.task: asyncio.Task | None = None
         self.send_lock = asyncio.Lock()
@@ -168,7 +264,7 @@ class Session:
                     # El texto anterior a una herramienta ya está completo: que suene ya.
                     for s in splitter.flush():
                         await sentences.put(s)
-                    if ev["name"] == "Skill" and not full.strip():
+                    if ev["name"] in ("Skill", HANDOFF_TOOL) and not full.strip():
                         # Que no haya silencio mientras se escribe el entregable
                         ack = "Vale, me pongo con ello."
                         full += ack + " "
@@ -191,6 +287,41 @@ class Session:
                 await self.send({"type": "artifacts", "artifacts": projects.artifacts(self.slug)})
         await speaker
         await self.send({"type": "turn_end", "turn": turn})
+
+    # ---------- Arquitecto (segundo plano) ----------
+    async def handoff(self, entregables: list[str], brief: str) -> str:
+        """Lo llama el entrevistador. Vuelve al instante; el Arquitecto trabaja aparte."""
+        job = _jobs.get(self.slug)
+        if job and not job.done():
+            return "El Arquitecto ya está trabajando en un encargo de este proyecto; avisará al terminar."
+        _jobs[self.slug] = asyncio.create_task(self.architect_job(entregables, brief))
+        return (f"Encargo en marcha ({', '.join(entregables)}). Tardará un par de minutos. "
+                "Si aún no lo has dicho, avisa en una frase de que lo estás preparando; no lo repitas. Sigue conversando.")
+
+    async def architect_job(self, entregables: list[str], brief: str) -> None:
+        await self.send({"type": "architect", "state": "working", "deliverables": entregables})
+        try:
+            summary = await run_architect(self.slug, entregables, brief, on_event=self.send)
+            note = summary or f"{', '.join(f'{e}.md' for e in entregables)} listos."
+            ok = True
+        except Exception as e:  # noqa: BLE001
+            log.exception("Error del Arquitecto")
+            note, ok = f"el Arquitecto no pudo terminar el encargo ({e}).", False
+        finally:
+            _jobs.pop(self.slug, None)
+        await self.send({"type": "architect", "state": "done" if ok else "error", "summary": note})
+        await self.send({"type": "artifacts", "artifacts": projects.artifacts(self.slug)})
+        if self.closed:
+            return
+        idle = self.task is None or self.task.done()
+        if idle:
+            # Nadie está hablando: Prometeo lo anuncia en voz alta.
+            spoken = note if ok and len(note) <= 220 else (
+                "Ya tienes los entregables listos." if ok else "No he podido terminar los entregables, ¿lo intento otra vez?")
+            self.brain.notes.append(f"ya has anunciado a la persona: «{spoken}»")
+            self.task = asyncio.create_task(self.say(spoken))
+        else:
+            self.brain.notes.append(note)
 
     async def auto_title(self, text: str) -> None:
         title = await suggest_title(text)
@@ -265,6 +396,7 @@ async def ws_session(ws: WebSocket, mode: str = "plan", project: str | None = No
         log.exception("Error de sesión")
         await s.send({"type": "error", "message": str(e)})
     finally:
+        s.closed = True
         await s.cancel_current()
         await s.brain.close()
         if project and greeting == "nuevo":

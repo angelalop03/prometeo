@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .config import PROJECTS_DIR
 
-HIDDEN = {"meta.json", "conversacion.md"}
+HIDDEN = {"meta.json", "conversacion.md", "brief.md"}
 
 
 def _slugify(text: str) -> str:
@@ -79,6 +79,15 @@ def artifacts(slug: str) -> list[dict]:
 
 def conversation(slug: str) -> str:
     return (project_dir(slug) / "conversacion.md").read_text(encoding="utf-8")
+
+
+def delete(slug: str) -> None:
+    """Borra un proyecto y todos sus entregables."""
+    import shutil
+    d = project_dir(slug)
+    if not (d / "meta.json").exists():
+        raise FileNotFoundError(slug)
+    shutil.rmtree(d)
 
 
 def delete_if_empty(slug: str) -> bool:

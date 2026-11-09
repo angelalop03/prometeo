@@ -3,7 +3,7 @@ import { createReadStream, existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 
-const BACKEND = 'http://127.0.0.1:8765'
+const BACKEND = process.env.PROMETEO_BACKEND ?? 'http://127.0.0.1:8765'
 
 /**
  * onnxruntime-web importa dinámicamente sus .mjs desde /vad/. En desarrollo Vite
