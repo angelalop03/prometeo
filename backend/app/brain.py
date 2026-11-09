@@ -1,4 +1,4 @@
-"""Cerebro de ORION: Claude Agent SDK usando la suscripción de Claude Code (sin API key)."""
+"""Cerebro de PROMETEO: Claude Agent SDK usando la suscripción de Claude Code (sin API key)."""
 from __future__ import annotations
 
 import asyncio
@@ -21,14 +21,14 @@ from claude_agent_sdk import (
 )
 
 from . import projects
-from .config import AGENT_DIR, agent_prompt, mode_prompt, save_voice
+from .config import AGENT_DIR, env, agent_prompt, mode_prompt, save_voice
 from .speech import VOICES
 
 # Nunca usar una API key aunque exista en el entorno: queremos la suscripción.
 os.environ.pop("ANTHROPIC_API_KEY", None)
 
 FILE_TOOLS = ["Read", "Write", "Edit", "Glob"]
-ORION_SKILLS = sorted(f"orion:{d.name}" for d in (AGENT_DIR / "skills").iterdir() if (d / "SKILL.md").exists())
+PROMETEO_SKILLS = sorted(f"prometeo:{d.name}" for d in (AGENT_DIR / "skills").iterdir() if (d / "SKILL.md").exists())
 
 
 def _path_guard(root: Path):
@@ -66,11 +66,11 @@ class Brain:
     def _options(self) -> ClaudeAgentOptions:
         # Sonnet + effort bajo: ~1 s hasta la primera palabra (Opus tarda 4-30 s, demasiado para voz).
         common = dict(setting_sources=[], include_partial_messages=True,
-                      model=os.environ.get("ORION_MODEL", "sonnet"),
-                      effort=os.environ.get("ORION_EFFORT", "low"))
+                      model=env("MODEL", "sonnet"),
+                      effort=env("EFFORT", "low"))
 
         if self.mode == "voz":
-            @tool("set_voice", "Cambia la voz de ORION en vivo. voice: em_alex | em_santa | ef_dora. speed: 0.8-1.3",
+            @tool("set_voice", "Cambia la voz de PROMETEO en vivo. voice: em_alex | em_santa | ef_dora. speed: 0.8-1.3",
                   {"voice": str, "speed": float})
             async def set_voice(args: dict) -> dict:
                 v = args.get("voice") if args.get("voice") in VOICES else None
@@ -85,11 +85,11 @@ class Brain:
                 await self.on_event({"type": "voice_setup_done", "voice": cfg})
                 return {"content": [{"type": "text", "text": "Configuración de voz guardada."}]}
 
-            server = create_sdk_mcp_server("orion", tools=[set_voice, finish])
+            server = create_sdk_mcp_server("prometeo", tools=[set_voice, finish])
             return ClaudeAgentOptions(
                 system_prompt=agent_prompt() + "\n\n" + mode_prompt("definir-voz"),
-                mcp_servers={"orion": server}, tools=[],
-                allowed_tools=["mcp__orion__set_voice", "mcp__orion__finish_voice_setup"],
+                mcp_servers={"prometeo": server}, tools=[],
+                allowed_tools=["mcp__prometeo__set_voice", "mcp__prometeo__finish_voice_setup"],
                 cwd=str(AGENT_DIR), max_turns=6, **common,
             )
 
@@ -104,7 +104,7 @@ class Brain:
         return ClaudeAgentOptions(
             system_prompt=agent_prompt() + ctx,
             tools=FILE_TOOLS + ["Skill"], allowed_tools=FILE_TOOLS,
-            plugins=[{"type": "local", "path": str(AGENT_DIR)}], skills=ORION_SKILLS,
+            plugins=[{"type": "local", "path": str(AGENT_DIR)}], skills=PROMETEO_SKILLS,
             permission_mode="acceptEdits", cwd=str(pdir), resume=meta.get("session_id"),
             hooks={"PreToolUse": [HookMatcher(matcher="Read|Write|Edit|Glob", hooks=[guard])]},
             max_turns=20, **common,

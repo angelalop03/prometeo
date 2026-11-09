@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import io
-import os
 import re
 import threading
 import wave
 
 import numpy as np
 
-from .config import MODELS_DIR
+from .config import MODELS_DIR, env
 
 VOICES = {
     "em_alex": "Masculina, serena y neutra",
@@ -22,9 +21,9 @@ class STT:
     def __init__(self) -> None:
         from faster_whisper import WhisperModel
 
-        size = os.environ.get("ORION_WHISPER_MODEL", "base")
+        size = env("WHISPER_MODEL", "base")
         self.model = WhisperModel(size, device="cpu", compute_type="int8",
-                                  cpu_threads=int(os.environ.get("ORION_STT_THREADS", "8")))
+                                  cpu_threads=int(env("STT_THREADS", "8")))
         self._lock = threading.Lock()
 
     def transcribe(self, pcm16k: np.ndarray) -> str:

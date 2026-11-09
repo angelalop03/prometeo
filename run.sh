@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Arranca ORION en modo desarrollo: backend (8765) + frontend (5173).
+# Arranca PROMETEO en modo desarrollo: backend (8765) + frontend (5173).
 # Abre http://localhost:5173
 set -euo pipefail
 cd "$(dirname "$0")"

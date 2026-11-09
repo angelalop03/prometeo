@@ -5,7 +5,7 @@ import type { Energy } from './scene/Scene'
 
 export interface Artifact { name: string; content: string; mtime: number }
 export interface ProjectMeta { slug: string; title: string; created: string; updated: string; artifacts?: string[] }
-export interface Msg { role: 'user' | 'orion'; text: string; tools: string[] }
+export interface Msg { role: 'user' | 'agent'; text: string; tools: string[] }
 
 let player: VoicePlayer | null = null
 let micPromise: Promise<Mic> | null = null
@@ -21,13 +21,13 @@ export async function unlockAudio() {
 }
 
 const TOOL_LABELS: Record<string, string> = {
-  'orion:crear-prompt': 'Creando prompt…',
-  'orion:documentar-plan': 'Documentando plan…',
-  'orion:desglosar-tareas': 'Desglosando tareas…',
-  'orion:resumen-notas': 'Resumiendo notas…',
-  mcp__orion__set_project_title: 'Título del proyecto actualizado',
-  mcp__orion__set_voice: 'Voz cambiada',
-  mcp__orion__finish_voice_setup: 'Voz guardada',
+  'prometeo:crear-prompt': 'Creando prompt…',
+  'prometeo:documentar-plan': 'Documentando plan…',
+  'prometeo:desglosar-tareas': 'Desglosando tareas…',
+  'prometeo:resumen-notas': 'Resumiendo notas…',
+  mcp__prometeo__set_project_title: 'Título del proyecto actualizado',
+  mcp__prometeo__set_voice: 'Voz cambiada',
+  mcp__prometeo__finish_voice_setup: 'Voz guardada',
 }
 
 export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null; enabled: boolean }) {
@@ -53,18 +53,18 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
     s.send(data instanceof ArrayBuffer ? data : JSON.stringify(data))
   }, [])
 
-  /** Barge-in: la persona habla mientras ORION habla o piensa. */
+  /** Barge-in: la persona habla mientras PROMETEO habla o piensa. */
   const interrupt = useCallback(() => {
     player?.stop()
     minTurn.current = turn.current + 1
     send({ type: 'interrupt' })
   }, [send])
 
-  const appendOrion = (fn: (m: Msg) => Msg) =>
+  const appendAgent = (fn: (m: Msg) => Msg) =>
     setMessages((ms) => {
       const last = ms[ms.length - 1]
-      if (last?.role === 'orion') return [...ms.slice(0, -1), fn(last)]
-      return [...ms, fn({ role: 'orion', text: '', tools: [] })]
+      if (last?.role === 'agent') return [...ms.slice(0, -1), fn(last)]
+      return [...ms, fn({ role: 'agent', text: '', tools: [] })]
     })
 
   useEffect(() => {
@@ -102,24 +102,24 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
           break
         case 'turn_start':
           turn.current = d.turn
-          setMessages((ms) => [...ms, { role: 'orion', text: '', tools: [] }])
+          setMessages((ms) => [...ms, { role: 'agent', text: '', tools: [] }])
           break
         case 'audio':
           pendingAudioTurn.current = d.turn
           break
         case 'delta':
-          appendOrion((m) => ({ ...m, text: m.text + d.text }))
+          appendAgent((m) => ({ ...m, text: m.text + d.text }))
           break
         case 'tool': {
           const label = TOOL_LABELS[d.skill ?? ''] ?? TOOL_LABELS[d.name] ?? (d.file ? `Escribiendo ${d.file}…` : null)
-          if (label) appendOrion((m) => ({ ...m, tools: [...m.tools, label] }))
+          if (label) appendAgent((m) => ({ ...m, tools: [...m.tools, label] }))
           break
         }
         case 'transcript':
           setMessages((ms) => {
-            // El transcript va antes de la respuesta de ORION que empieza después.
+            // El transcript va antes de la respuesta de PROMETEO que empieza después.
             const last = ms[ms.length - 1]
-            const base = last?.role === 'orion' && !last.text ? ms.slice(0, -1) : ms
+            const base = last?.role === 'agent' && !last.text ? ms.slice(0, -1) : ms
             return [...base, { role: 'user', text: d.text, tools: [] }]
           })
           break
@@ -156,7 +156,7 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
     try {
       const m = await getMic()
       m.setCallbacks({
-        // Barge-in solo si ORION está hablando; si está pensando, esperamos a la transcripción.
+        // Barge-in solo si PROMETEO está hablando; si está pensando, esperamos a la transcripción.
         onSpeechStart: () => { if (player?.playing) interrupt() },
         onUtterance: (audio) => send(audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer),
       })
@@ -193,8 +193,8 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
 function parseConversation(md: string): Msg[] {
   const out: Msg[] = []
   for (const line of md.split('\n')) {
-    const m = line.match(/^\*\*(Tú|ORION)\*\* \([^)]*\): (.*)$/)
-    if (m) out.push({ role: m[1] === 'Tú' ? 'user' : 'orion', text: m[2], tools: [] })
+    const m = line.match(/^\*\*(Tú|PROMETEO|ORION)\*\* \([^)]*\): (.*)$/)
+    if (m) out.push({ role: m[1] === 'Tú' ? 'user' : 'agent', text: m[2], tools: [] })
   }
   return out
 }

@@ -5,5 +5,5 @@ language: es
 speed: 0.85
 configured: true
 ---
-Voz por defecto de ORION: masculina, serena, ritmo ágil.
+Voz por defecto de Prometeo: masculina, serena, ritmo ágil.
 Se redefine en la vista "Definir voz" la primera vez que se usa la app.

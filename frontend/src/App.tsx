@@ -40,7 +40,7 @@ export default function App() {
     <>
       <Scene {...reactor} />
       <div className="layer">
-        <button className="wordmark" onClick={goHome} title="Inicio">ORION</button>
+        <button className="wordmark" onClick={goHome} title="Inicio">PROMETEO</button>
         {view.name === 'comenzar' && <Comenzar setReactor={setReactor} onStart={() => setView({ name: 'voz' })} />}
         {view.name === 'voz' && <DefinirVoz setReactor={setReactor} onDone={goHome} />}
         {view.name === 'inicio' && (
@@ -91,7 +91,7 @@ function DefinirVoz({ setReactor, onDone }: { setReactor: SetReactor; onDone: ()
     <>
       <div className="status"><span className={`dot ${s.connected ? '' : 'off'}`} />Definiendo voz · {ENERGY_LABEL[s.energy]}</div>
       <Caption messages={s.messages} />
-      <InputBar s={s} placeholder="Describe cómo quieres que suene ORION…" />
+      <InputBar s={s} placeholder="Describe cómo quieres que suene PROMETEO…" />
       {(s.error || s.micError) && <div className="toast">{s.error || s.micError}</div>}
     </>
   )
@@ -150,7 +150,7 @@ function Conversacion({ project, setReactor }: { project: string | null; setReac
       <Transcript messages={s.messages} />
       <Artifacts artifacts={s.artifacts} />
       <Caption messages={s.messages} compact />
-      <InputBar s={s} placeholder="Escribe o habla con ORION…" />
+      <InputBar s={s} placeholder="Escribe o habla con PROMETEO…" />
       {(s.error || s.micError) && <div className="toast">{s.error || s.micError}</div>}
     </>
   )
@@ -158,15 +158,15 @@ function Conversacion({ project, setReactor }: { project: string | null; setReac
 
 /* ---------------- Piezas compartidas ---------------- */
 function Caption({ messages, compact }: { messages: Msg[]; compact?: boolean }) {
-  const lastOrion = [...messages].reverse().find((m) => m.role === 'orion')
-  const lastIdx = lastOrion ? messages.lastIndexOf(lastOrion) : -1
+  const lastAgent = [...messages].reverse().find((m) => m.role === 'agent')
+  const lastIdx = lastAgent ? messages.lastIndexOf(lastAgent) : -1
   const userAfter = messages.slice(lastIdx + 1).find((m) => m.role === 'user')
-  const text = lastOrion?.text ?? ''
+  const text = lastAgent?.text ?? ''
   const shown = compact && text.length > 260 ? '…' + text.slice(-260) : text
   return (
     <div className="caption passthrough" style={compact ? { width: 'min(460px, calc(100vw - 32px))', fontSize: 17, top: 'calc(50% + 150px)' } : undefined}>
       {shown}
-      {lastOrion?.tools.length ? <span className="you" style={{ marginTop: 8 }}>{lastOrion.tools[lastOrion.tools.length - 1]}</span> : null}
+      {lastAgent?.tools.length ? <span className="you" style={{ marginTop: 8 }}>{lastAgent.tools[lastAgent.tools.length - 1]}</span> : null}
       {userAfter && <span className="you">{userAfter.text}</span>}
     </div>
   )
@@ -177,7 +177,7 @@ function InputBar({ s, placeholder }: { s: ReturnType<typeof useSession>; placeh
   return (
     <form className="inputbar" onSubmit={(e) => { e.preventDefault(); s.sendText(text); setText('') }}>
       <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label="Mensaje" />
-      {s.playing && <button type="button" className="iconbtn" title="Callar a ORION" onClick={s.interrupt}>■</button>}
+      {s.playing && <button type="button" className="iconbtn" title="Callar a PROMETEO" onClick={s.interrupt}>■</button>}
       <button
         type="button"
         className={`iconbtn ${s.micOn ? 'on' : ''}`}
@@ -201,7 +201,7 @@ function Transcript({ messages }: { messages: Msg[] }) {
         {messages.length === 0 && <p className="empty">La conversación aparecerá aquí.</p>}
         {messages.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
-            <span className="who">{m.role === 'user' ? 'TÚ' : 'ORION'}</span>
+            <span className="who">{m.role === 'user' ? 'TÚ' : 'PROMETEO'}</span>
             {m.text}
             {m.tools.map((t, j) => <span key={j} className="tool">{t}</span>)}
           </div>
@@ -255,7 +255,7 @@ function Artifacts({ artifacts }: { artifacts: Artifact[] }) {
         {cur ? (
           <div className="markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{cur.content}</ReactMarkdown></div>
         ) : (
-          <p className="empty">Cuando cerréis el plan, pide a ORION<br />«dame el plan», «crea el prompt», «las tareas» o «las notas».</p>
+          <p className="empty">Cuando cerréis el plan, pide a PROMETEO<br />«dame el plan», «crea el prompt», «las tareas» o «las notas».</p>
         )}
       </div>
     </aside>

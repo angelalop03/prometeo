@@ -1,4 +1,4 @@
-"""Servidor ORION: REST + WebSocket de sesión (voz/texto)."""
+"""Servidor PROMETEO: REST + WebSocket de sesión (voz/texto)."""
 from __future__ import annotations
 
 import asyncio
@@ -15,10 +15,10 @@ from .brain import Brain, suggest_title
 from .config import FRONTEND_DIST, PROJECTS_DIR, agent_meta, load_voice
 from .speech import STT, TTS, VOICES, SentenceSplitter
 
-log = logging.getLogger("orion")
+log = logging.getLogger("prometeo")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-app = FastAPI(title="ORION")
+app = FastAPI(title="PROMETEO")
 PROJECTS_DIR.mkdir(exist_ok=True)
 
 _stt: STT | None = None
@@ -73,7 +73,7 @@ def get_project(slug: str):
 
 # ---------------- Sesión WebSocket ----------------
 GREETINGS = {
-    "voz": "Hola, soy ORION. Antes de empezar, elijamos cómo quieres que suene mi voz. ¿La prefieres grave y serena, o más enérgica?",
+    "voz": "Hola, soy Prometeo. Antes de empezar, elijamos cómo quieres que suene mi voz. ¿La prefieres grave y serena, o más enérgica?",
     "nuevo": "Aquí estoy. ¿Qué quieres planificar hoy?",
     "reanudar": "Retomamos «{title}». ¿Por dónde seguimos?",
 }

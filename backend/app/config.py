@@ -7,7 +7,12 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(os.environ.get("ORION_ROOT", Path(__file__).resolve().parents[2]))
+def env(name: str, default=None):
+    """PROMETEO_<name>, con ORION_<name> como alternativa por compatibilidad."""
+    return os.environ.get(f"PROMETEO_{name}", os.environ.get(f"ORION_{name}", default))
+
+
+ROOT = Path(env("ROOT", Path(__file__).resolve().parents[2]))
 AGENT_DIR = ROOT / "agent"
 PROJECTS_DIR = ROOT / "projects"
 MODELS_DIR = ROOT / "backend" / "models"

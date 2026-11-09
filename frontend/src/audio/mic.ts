@@ -14,7 +14,7 @@ export class Mic {
   private stream: MediaStream | null = null
   private ctx: AudioContext | null = null
   private raf = 0
-  /** Mientras ORION habla exigimos más confianza para evitar que se interrumpa con su propia voz. */
+  /** Mientras PROMETEO habla exigimos más confianza para evitar que se interrumpa con su propia voz. */
   private strict = false
 
   private cb: MicCallbacks = { onSpeechStart: () => {}, onUtterance: () => {} }
@@ -52,7 +52,7 @@ export class Mic {
     })
   }
 
-  /** Mientras ORION habla, sube el umbral para que no se escuche a sí mismo. */
+  /** Mientras PROMETEO habla, sube el umbral para que no se escuche a sí mismo. */
   setStrict(on: boolean) {
     if (!this.vad || on === this.strict) return
     this.strict = on

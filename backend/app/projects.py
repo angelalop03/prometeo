@@ -66,7 +66,7 @@ def list_all() -> list[dict]:
 
 
 def append_turn(slug: str, role: str, text: str) -> None:
-    who = "Tú" if role == "user" else "ORION"
+    who = "Tú" if role == "user" else "PROMETEO"
     with (project_dir(slug) / "conversacion.md").open("a", encoding="utf-8") as f:
         f.write(f"\n**{who}** ({datetime.now():%H:%M}): {text.strip()}\n")
 
