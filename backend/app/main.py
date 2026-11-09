@@ -175,7 +175,9 @@ def delete_project(slug: str):
 # ---------------- Sesión WebSocket ----------------
 GREETINGS = {
     "voz": "Hola, soy Prometeo. Antes de empezar, elijamos cómo quieres que suene mi voz. ¿La prefieres grave y serena, o más enérgica?",
-    "nuevo": "Aquí estoy. ¿Qué quieres planificar hoy?",
+    "nuevo": ("Hola, soy Prometeo, tu agente de planificación. "
+              "Me cuentas tu idea, te hago las preguntas justas y te preparo el plan, las tareas, el prompt o las notas. "
+              "¿Qué quieres planificar hoy?"),
     "reanudar": "Retomamos «{title}». ¿Por dónde seguimos?",
 }
 
