@@ -28,8 +28,8 @@ body {
 .layer .passthrough, .layer .passthrough * { pointer-events: none; }
 
 /* ---- HUD chrome ---- */
+.topleft { position: fixed; top: 30px; left: 44px; display: flex; align-items: center; gap: 26px; }
 .wordmark {
-  position: fixed; top: 36px; left: 44px;
   font: 700 18px/1 var(--font-hud); letter-spacing: 0.4em; color: var(--text);
   opacity: 0.9; background: none; border: 0; cursor: pointer; padding: 0;
 }
@@ -43,6 +43,19 @@ body {
 }
 .status .dot.off { background: #546; box-shadow: none; animation: none; }
 @keyframes blink { 50% { opacity: 0.35; } }
+
+/* ---- Switch de idioma ---- */
+.lang-switch { display: flex; align-items: center; gap: 2px; font: 500 11px/1 var(--font-hud); letter-spacing: 0.2em; color: var(--text-dim); }
+.lang-switch button {
+  padding: 6px 8px; border: 1px solid transparent; border-radius: 4px; background: none; cursor: pointer;
+  font: inherit; letter-spacing: inherit; color: var(--text-dim); transition: color 0.2s, border-color 0.2s, text-shadow 0.2s;
+}
+.lang-switch button:hover { color: var(--text); }
+.lang-switch button.active { color: var(--cyan); border-color: var(--line); text-shadow: 0 0 10px rgba(79, 209, 255, 0.8); background: rgba(79, 209, 255, 0.06); }
+.lang-switch button:focus-visible { outline: 1px solid var(--cyan); outline-offset: 2px; }
+.lang-switch .sep { opacity: 0.35; margin: 0 2px; }
+.lang-switch .hint { margin-left: 10px; font: 300 11px/1 var(--font-body); letter-spacing: 0.02em; opacity: 0.7; }
+@media (max-width: 760px) { .lang-switch .hint { display: none; } }
 
 /* ---- Buttons ---- */
 .actions {
@@ -157,7 +170,6 @@ body {
 
 /* ---- Interacción con el cursor: luz y onda en el resto de botones ---- */
 .btn, .card, .iconbtn, .tab, .wordmark, .lang-switch button { position: relative; overflow: hidden; }
-.wordmark { position: fixed; }
 .btn.small::after, .btn.secondary::after, .card::after, .iconbtn::after, .tab::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.25s;
   background: radial-gradient(140px circle at var(--mx, 50%) var(--my, 50%), rgba(79, 209, 255, 0.22), transparent 70%);
@@ -191,7 +203,7 @@ body {
   text-shadow: 0 0 18px rgba(2, 3, 10, 0.9);
 }
 .caption .you { display: block; margin-top: 14px; font-size: 14px; color: var(--text-dim); }
-.caption .you::before { content: 'TÚ · '; font: 500 10px var(--font-hud); letter-spacing: 0.25em; }
+.caption .you[data-you]::before { content: attr(data-you) ' · '; font: 500 10px var(--font-hud); letter-spacing: 0.25em; }
 
 /* ---- Input bar ---- */
 .inputbar {
@@ -247,7 +259,7 @@ body {
 .markdown th, .markdown td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; }
 .markdown a { color: var(--cyan); }
 .markdown blockquote { margin: 0; padding-left: 12px; border-left: 2px solid var(--cyan); color: var(--text-dim); }
-.empty { color: var(--text-dim); font-size: 13px; text-align: center; margin-top: 40px; line-height: 1.6; }
+.empty { white-space: pre-line; color: var(--text-dim); font-size: 13px; text-align: center; margin-top: 40px; line-height: 1.6; }
 
 /* ---- Lista de proyectos ---- */
 .projects {
@@ -275,7 +287,7 @@ body {
   .panel.right { width: min(420px, 44vw); }
 }
 @media (max-width: 760px) {
-  .wordmark { left: 16px; top: 20px; } .status { right: 16px; top: 22px; }
+  .topleft { left: 16px; top: 16px; gap: 16px; } .status { right: 16px; top: 22px; }
   .panel.right { left: 16px; right: 16px; width: auto; top: auto; height: 40vh; bottom: 90px; }
   .inputbar { bottom: 16px; }
   .actions { top: calc(50% + 150px); }

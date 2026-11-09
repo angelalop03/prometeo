@@ -5,6 +5,7 @@ import Scene, { type Energy, type ReactorProps } from './scene/Scene'
 import CometCursor from './ui/CometCursor'
 import CosmicButton from './ui/CosmicButton'
 import { installCosmicInteractions } from './ui/cosmic'
+import { locale, t, useLang, type Lang } from './i18n'
 import { unlockAudio, useSession, type Artifact, type Msg, type ProjectMeta } from './session'
 
 type View =
@@ -15,12 +16,11 @@ type View =
   | { name: 'proyectos' }
   | { name: 'conversacion'; project: string | null; key: number }
 
-const ENERGY_LABEL: Record<Energy, string> = {
-  idle: 'En espera', listening: 'Escuchando', thinking: 'Pensando', speaking: 'Hablando',
-}
+const energyLabel = (e: Energy) => t(`energy.${e}`)
 
 export default function App() {
   const [view, setView] = useState<View>({ name: 'loading' })
+  const [lang, setLang] = useLang()
   const [reactor, setReactor] = useState<ReactorProps>({ variant: 'despertar', energy: 'idle', offsetY: 60 })
 
   useEffect(() => {
@@ -46,7 +46,10 @@ export default function App() {
       <Scene {...reactor} />
       <CometCursor />
       <div className="layer">
-        <button className="wordmark" onClick={goHome} title="Inicio">PROMETEO</button>
+        <div className="topleft">
+          <button className="wordmark" onClick={goHome} title={t('home')}>PROMETEO</button>
+          <LangSwitch lang={lang} setLang={setLang} />
+        </div>
         {view.name === 'comenzar' && <Comenzar setReactor={setReactor} onStart={() => setView({ name: 'voz' })} />}
         {view.name === 'voz' && <DefinirVoz setReactor={setReactor} onDone={goHome} />}
         {view.name === 'inicio' && (
@@ -72,9 +75,9 @@ function Comenzar({ setReactor, onStart }: { setReactor: SetReactor; onStart: ()
   useEffect(() => { setReactor({ variant: 'despertar', energy: 'idle', offsetY: 60 }) }, [setReactor])
   return (
     <>
-      <div className="status">Primera configuración</div>
+      <div className="status">{t('firstSetup')}</div>
       <div className="actions">
-        <CosmicButton primary onClick={async () => { await unlockAudio(); onStart() }}>COMENZAR</CosmicButton>
+        <CosmicButton primary onClick={async () => { await unlockAudio(); onStart() }}>{t('begin')}</CosmicButton>
       </div>
     </>
   )
@@ -95,9 +98,9 @@ function DefinirVoz({ setReactor, onDone }: { setReactor: SetReactor; onDone: ()
 
   return (
     <>
-      <div className="status"><span className={`dot ${s.connected ? '' : 'off'}`} />Definiendo voz · {ENERGY_LABEL[s.energy]}</div>
+      <div className="status"><span className={`dot ${s.connected ? '' : 'off'}`} />{t('definingVoice')} · {energyLabel(s.energy)}</div>
       <Caption messages={s.messages} />
-      <InputBar s={s} placeholder="Describe cómo quieres que suene PROMETEO…" />
+      <InputBar s={s} placeholder={t('voicePlaceholder')} />
       {(s.error || s.micError) && <div className="toast">{s.error || s.micError}</div>}
     </>
   )
@@ -122,16 +125,16 @@ function Proyectos({ setReactor, onOpen, onBack }: { setReactor: SetReactor; onO
   return (
     <div className="projects">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>PROYECTOS</h2>
-        <button className="btn secondary small" onClick={onBack}>← VOLVER</button>
+        <h2>{t('projects')}</h2>
+        <button className="btn secondary small" onClick={onBack}>{t('back')}</button>
       </div>
       <div className="list">
-        {list === null && <p className="empty">Cargando…</p>}
-        {list?.length === 0 && <p className="empty">Aún no hay proyectos.<br />Pulsa START para planificar el primero.</p>}
+        {list === null && <p className="empty">{t('loading')}</p>}
+        {list?.length === 0 && <p className="empty">{t('noProjects')}</p>}
         {list?.map((p) => (
           <button key={p.slug} className="card" onClick={async () => { await unlockAudio(); onOpen(p.slug) }}>
             <div className="title">{p.title}</div>
-            <div className="meta">Actualizado {new Date(p.updated).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+            <div className="meta">{t('updated', { date: new Date(p.updated).toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' }) })}</div>
             {p.artifacts?.map((a) => <span key={a} className="chip">{a}</span>)}
           </button>
         ))}
@@ -151,12 +154,12 @@ function Conversacion({ project, setReactor }: { project: string | null; setReac
     <>
       <div className="status">
         <span className={`dot ${s.connected ? '' : 'off'}`} />
-        {s.project?.title ?? 'Conectando'} · {ENERGY_LABEL[s.energy]}
+        {s.project?.title ?? t('connecting')} · {energyLabel(s.energy)}
       </div>
       <Transcript messages={s.messages} />
       <Artifacts artifacts={s.artifacts} />
       <Caption messages={s.messages} compact />
-      <InputBar s={s} placeholder="Escribe o habla con PROMETEO…" />
+      <InputBar s={s} placeholder={t('chatPlaceholder')} />
       {(s.error || s.micError) && <div className="toast">{s.error || s.micError}</div>}
     </>
   )
@@ -173,7 +176,7 @@ function Caption({ messages, compact }: { messages: Msg[]; compact?: boolean }) 
     <div className="caption passthrough" style={compact ? { width: 'min(460px, calc(100vw - 32px))', fontSize: 17, top: 'calc(50% + 150px)' } : undefined}>
       {shown}
       {lastAgent?.tools.length ? <span className="you" style={{ marginTop: 8 }}>{lastAgent.tools[lastAgent.tools.length - 1]}</span> : null}
-      {userAfter && <span className="you">{userAfter.text}</span>}
+      {userAfter && <span className="you" data-you={t('you')}>{userAfter.text}</span>}
     </div>
   )
 }
@@ -182,17 +185,17 @@ function InputBar({ s, placeholder }: { s: ReturnType<typeof useSession>; placeh
   const [text, setText] = useState('')
   return (
     <form className="inputbar" onSubmit={(e) => { e.preventDefault(); s.sendText(text); setText('') }}>
-      <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label="Mensaje" />
-      {s.playing && <button type="button" className="iconbtn" title="Callar a PROMETEO" onClick={s.interrupt}>■</button>}
+      <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label={t('message')} />
+      {s.playing && <button type="button" className="iconbtn" title={t('silence')} onClick={s.interrupt}>■</button>}
       <button
         type="button"
         className={`iconbtn ${s.micOn ? 'on' : ''}`}
-        title={s.micOn ? 'Silenciar micrófono' : 'Activar micrófono (manos libres)'}
+        title={s.micOn ? t('micOff') : t('micOn')}
         onClick={() => (s.micOn ? s.disableMic() : s.enableMic())}
       >
         {s.micOn ? '🎙' : '🔇'}
       </button>
-      <button type="submit" className="iconbtn" disabled={!text.trim() || !s.connected} title="Enviar">➤</button>
+      <button type="submit" className="iconbtn" disabled={!text.trim() || !s.connected} title={t('send')}>➤</button>
     </form>
   )
 }
@@ -202,12 +205,12 @@ function Transcript({ messages }: { messages: Msg[] }) {
   useEffect(() => { void end.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   return (
     <aside className="panel left">
-      <header>Transcripción</header>
+      <header>{t('transcript')}</header>
       <div className="body">
-        {messages.length === 0 && <p className="empty">La conversación aparecerá aquí.</p>}
+        {messages.length === 0 && <p className="empty">{t('transcriptEmpty')}</p>}
         {messages.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
-            <span className="who">{m.role === 'user' ? 'TÚ' : 'PROMETEO'}</span>
+            <span className="who">{m.role === 'user' ? t('you') : 'PROMETEO'}</span>
             {m.text}
             {m.tools.map((t, j) => <span key={j} className="tool">{t}</span>)}
           </div>
@@ -242,10 +245,10 @@ function Artifacts({ artifacts }: { artifacts: Artifact[] }) {
   return (
     <aside className="panel right">
       <header>
-        Entregables
+        {t('deliverables')}
         {cur && (
           <span style={{ display: 'flex', gap: 6 }}>
-            <button className="btn secondary small" onClick={copy}>{copied ? 'COPIADO' : 'COPIAR'}</button>
+            <button className="btn secondary small" onClick={copy}>{copied ? t('copied') : t('copy')}</button>
             <button className="btn secondary small" onClick={download}>.MD</button>
           </span>
         )}
@@ -261,9 +264,23 @@ function Artifacts({ artifacts }: { artifacts: Artifact[] }) {
         {cur ? (
           <div className="markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{cur.content}</ReactMarkdown></div>
         ) : (
-          <p className="empty">Cuando cerréis el plan, pide a PROMETEO<br />«dame el plan», «crea el prompt», «las tareas» o «las notas».</p>
+          <p className="empty">{t('deliverablesEmpty')}</p>
         )}
       </div>
     </aside>
+  )
+}
+
+function LangSwitch({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+  return (
+    <div className="lang-switch" role="group" aria-label={t('langLabel')} title={t('langHint')}>
+      {(['es', 'en'] as const).map((l, i) => (
+        <span key={l}>
+          {i > 0 && <span className="sep" aria-hidden="true">|</span>}
+          <button className={lang === l ? 'active' : ''} aria-pressed={lang === l} onClick={() => setLang(l)}>{l.toUpperCase()}</button>
+        </span>
+      ))}
+      {lang === 'en' && <span className="hint">{t('langHint')}</span>}
+    </div>
   )
 }

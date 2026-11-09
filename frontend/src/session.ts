@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Mic } from './audio/mic'
 import { VoicePlayer } from './audio/player'
+import { t } from './i18n'
 import type { Energy } from './scene/Scene'
 
 export interface Artifact { name: string; content: string; mtime: number }
@@ -20,14 +21,14 @@ export async function unlockAudio() {
   return player
 }
 
-const TOOL_LABELS: Record<string, string> = {
-  'prometeo:crear-prompt': 'Creando prompt…',
-  'prometeo:documentar-plan': 'Documentando plan…',
-  'prometeo:desglosar-tareas': 'Desglosando tareas…',
-  'prometeo:resumen-notas': 'Resumiendo notas…',
-  mcp__prometeo__set_project_title: 'Título del proyecto actualizado',
-  mcp__prometeo__set_voice: 'Voz cambiada',
-  mcp__prometeo__finish_voice_setup: 'Voz guardada',
+const TOOL_LABELS: Record<string, () => string> = {
+  'prometeo:crear-prompt': () => t('tool.crear-prompt'),
+  'prometeo:documentar-plan': () => t('tool.documentar-plan'),
+  'prometeo:desglosar-tareas': () => t('tool.desglosar-tareas'),
+  'prometeo:resumen-notas': () => t('tool.resumen-notas'),
+  mcp__prometeo__set_project_title: () => t('tool.title'),
+  mcp__prometeo__set_voice: () => t('tool.voice'),
+  mcp__prometeo__finish_voice_setup: () => t('tool.voiceSaved'),
 }
 
 export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null; enabled: boolean }) {
@@ -111,7 +112,7 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
           appendAgent((m) => ({ ...m, text: m.text + d.text }))
           break
         case 'tool': {
-          const label = TOOL_LABELS[d.skill ?? ''] ?? TOOL_LABELS[d.name] ?? (d.file ? `Escribiendo ${d.file}…` : null)
+          const label = (TOOL_LABELS[d.skill ?? ''] ?? TOOL_LABELS[d.name])?.() ?? (d.file ? t('tool.writing', { file: d.file }) : null)
           if (label) appendAgent((m) => ({ ...m, tools: [...m.tools, label] }))
           break
         }
@@ -164,7 +165,7 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
       setMicOn(true)
       setMicError(null)
     } catch (e) {
-      setMicError('No se pudo acceder al micrófono. Puedes escribir abajo.')
+      setMicError(t('micError'))
       console.error(e)
     }
   }, [interrupt, send])
