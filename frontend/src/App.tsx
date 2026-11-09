@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import Scene, { type Energy, type ReactorProps } from './scene/Scene'
+import CometCursor from './ui/CometCursor'
+import CosmicButton from './ui/CosmicButton'
+import { installCosmicInteractions } from './ui/cosmic'
 import { unlockAudio, useSession, type Artifact, type Msg, type ProjectMeta } from './session'
 
 type View =
@@ -34,11 +37,14 @@ export default function App() {
       .catch(() => setView({ name: 'comenzar' }))
   }, [])
 
+  useEffect(() => installCosmicInteractions(), [])
+
   const goHome = () => setView({ name: 'inicio' })
 
   return (
     <>
       <Scene {...reactor} />
+      <CometCursor />
       <div className="layer">
         <button className="wordmark" onClick={goHome} title="Inicio">PROMETEO</button>
         {view.name === 'comenzar' && <Comenzar setReactor={setReactor} onStart={() => setView({ name: 'voz' })} />}
@@ -68,7 +74,7 @@ function Comenzar({ setReactor, onStart }: { setReactor: SetReactor; onStart: ()
     <>
       <div className="status">Primera configuración</div>
       <div className="actions">
-        <button className="btn" onClick={async () => { await unlockAudio(); onStart() }}>COMENZAR</button>
+        <CosmicButton primary onClick={async () => { await unlockAudio(); onStart() }}>COMENZAR</CosmicButton>
       </div>
     </>
   )
@@ -102,8 +108,8 @@ function Inicio({ setReactor, onStart, onOpen }: { setReactor: SetReactor; onSta
   useEffect(() => { setReactor({ variant: 'reposo', energy: 'idle', offsetY: 80 }) }, [setReactor])
   return (
     <div className="actions">
-      <button className="btn" onClick={async () => { await unlockAudio(); onStart() }}>START</button>
-      <button className="btn secondary" onClick={onOpen}>OPEN PJ.</button>
+      <CosmicButton primary onClick={async () => { await unlockAudio(); onStart() }}>START</CosmicButton>
+      <CosmicButton onClick={onOpen}>OPEN PJ.</CosmicButton>
     </div>
   )
 }
