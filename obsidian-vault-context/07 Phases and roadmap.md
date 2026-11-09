@@ -1,33 +1,46 @@
 ---
 tags: [prometeo, roadmap]
-actualizado: 2026-11-09
+updated: 2026-11-09
 ---
-# Fases y roadmap
+# Phases and roadmap
 
-- [x] **F0 – Base**: monorepo, uv + Vite, Agent SDK respondiendo con la suscripción (sin API key) ✅
-- [x] **F1 – Cerebro por texto**: `brain.py`, `agent.md`, `projects.py`, chat por WebSocket, crear y reanudar proyectos ✅
-- [x] **F2 – Pipeline de voz**: VAD en el navegador → whisper → Claude en streaming → Kokoro por frases, con barge-in ✅
-- [x] **F3 – UI galaxia**: 5 vistas, reactor 3D audio-reactivo con 4 estados, nebulosa y estrellas ✅
-- [x] **F4 – Skills y entregables**: 4 skills, panel con pestañas, copiar y descargar `.md` ✅
-- [x] **F4.5 – Rebrand PROMETEO + UI**: nombre nuevo, botones cósmicos, cursor cometa, interacción con el cursor y switch ES/EN de la interfaz ✅ → [[06 UI Midnight Galaxy]]
-- [ ] **F5 – Voz personalizable**: Chatterbox (clonación), editor de `voice.md` en la UI, botón "probar voz"
+- [x] **F0 – Base**: monorepo, uv + Vite, Agent SDK answering through the subscription (no API key) ✅
+- [x] **F1 – Text brain**: `brain.py`, `agent.md`, `projects.py`, WebSocket chat, create and resume projects ✅
+- [x] **F2 – Voice pipeline**: VAD in the browser → whisper → streamed Claude → Kokoro per sentence, with barge-in ✅
+- [x] **F3 – Galaxy UI**: 5 views, audio-reactive 3D reactor with 4 states, nebula and stars ✅
+- [x] **F4 – Skills and deliverables**: 4 skills, tabbed panel, copy and download `.md` ✅
+- [x] **F4.5 – PROMETEO rebrand + UI**: new name, cosmic buttons, comet cursor, cursor interaction and ES/EN interface switch ✅ → [[06 UI Midnight Galaxy]]
+- [x] **F4.6 – Settings and navigation**: navigation bar with routes, **Voces** view (listen and choose), **Ajustes** view (voice, CPU/GPU, Whisper, Claude model and effort, language), deleting projects, per-machine settings in `settings.local.json` ✅ → [[10 Implementation decisions]]
+- [x] **F4.7 – Two agents**: fast interviewer (Sonnet) + deep Architect (Opus) in the background, MCP connection suggestions, Architect model and effort settings ✅ → [[03 Agent (agent.md)]]
+- [ ] **F5 – Customisable voice**: Chatterbox (cloning). Already done: choosing the voice from the UI and a "test voice" button
 
-## Latencias medidas (CPU Intel, sin GPU)
-| Paso | Tiempo |
+## Measured latencies (Intel CPU, no GPU)
+> [!info] With GPU (RTX 4060)
+> Whisper `base` on GPU: ~0.03 s for a 4 s utterance (~0.34 s on that machine's CPU). Kokoro: ~0.14 s per sentence (~0.84 s on CPU).
+
+| Step | Time |
 |---|---|
-| Saludo (frase fija) | ~1,5 s |
-| STT whisper `base` (frase de 4 s) | ~1 s |
-| Primera palabra de Prometeo tras un mensaje | ~3,5–4 s |
-| Primera palabra al pedir entregables | ~4 s; el archivo completo tarda 20–40 s |
+| Greeting (fixed sentence) | ~1.5 s |
+| STT whisper `base` (4 s utterance) | ~1 s |
+| Prometeo's first word after a message | ~3.5–4 s |
+| First word when asking for deliverables | ~4 s; the full file takes 20–40 s (before the two-agent split) |
+| With two agents (RTX 4060, text) | First word 0.6–2.3 s; the handoff returns immediately; Opus `high` takes ~2 min for `plan.md` + `tareas.md` |
 
-## Pendiente / ideas
-- [x] Renombrar repo y vault · subido a GitHub (público): https://github.com/manuelgraya/prometeo
-- [ ] Comprobar de oído cómo pronuncia Kokoro «Prometeo»
-- [ ] Voz en inglés (el switch EN solo traduce la interfaz)
-- [ ] Actualizar Figma: nombre PROMETEO, botones cósmicos, switch de idioma
-- [ ] Diseñar en Figma las vistas 04 · Conversación y 05 · Proyectos (ya están implementadas en código)
-- [ ] Modo "pulsar para hablar" (barra espaciadora) como alternativa al manos libres
-- [ ] Skill `exportar-a-obsidian`: copiar los entregables a este vault
-- [ ] Logo definitivo → [[09 Prompts de logotipo]]
+## Pending / ideas
+- [x] Rename repo and vault · pushed to GitHub (public): https://github.com/manuelgraya/prometeo
+- [ ] Check by ear how Kokoro pronounces «Prometeo»
+- [ ] English voice (the EN switch only translates the interface)
+- [ ] Update Figma: PROMETEO name, cosmic buttons, language switch
+- [ ] Design views 04 · Conversación and 05 · Proyectos in Figma (already implemented in code)
+- [ ] Push-to-talk mode (space bar) as an alternative to hands-free
+- [ ] `exportar-a-obsidian` skill: copy the deliverables into this vault
+- [ ] Final logo → [[09 Logo prompts]]
+- [x] Kokoro on GPU via `onnxruntime-gpu` (~0.14 s vs ~0.84 s per sentence)
+- [ ] Add the CUDA libraries and `onnxruntime-gpu` as an optional extra in `pyproject.toml` (currently installed by hand with `uv pip install`, see README)
+- [ ] Design the Voces and Ajustes views in Figma
+- [ ] Check by ear how the accented voices sound
+- [ ] Test the two agents by voice (so far only by text) and tune the Architect's spoken notice
+- [ ] Consider switching the Architect's and skills' instructions to English (small token saving; templates and skill names stay Spanish) → [[10 Implementation decisions]]
+- [ ] Extend `agent/mcp-catalog.md` based on real projects
 
-Relacionado: [[10 Decisiones de implementación]] · [[PROMETEO]]
+Related: [[10 Implementation decisions]] · [[PROMETEO]]

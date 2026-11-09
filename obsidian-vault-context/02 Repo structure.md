@@ -1,48 +1,52 @@
 ---
 tags: [prometeo, repo]
-actualizado: 2026-11-09
+updated: 2026-11-09
 ---
-# Estructura del repositorio
+# Repository structure
 
-Ruta: `/home/manuel/Work/prometeo`
-
+Path: `~/Work/prometeo`
 
 ```
 prometeo/
-├── agent/                      # plugin local del Agent SDK, nombre "prometeo"
+├── agent/                      # local Agent SDK plugin, named "prometeo"
 │   ├── .claude-plugin/plugin.json
-│   ├── agent.md                # nombre, rol, finalidad, personalidad, trato, método
-│   ├── voice.md                # motor TTS, voz, velocidad, idioma (frontmatter YAML)
-│   ├── modes/definir-voz.md    # conversación de primera configuración
-│   └── skills/                 # cada skill = carpeta con SKILL.md → prometeo:<skill>
+│   ├── agent.md                # INTERVIEWER: name, role, personality, method, questions, MCP, handoff
+│   ├── arquitecto.md           # ARCHITECT: analyses what was gathered and writes the deliverables (Opus)
+│   ├── mcp-catalog.md          # MCP servers the interviewer may recommend
+│   ├── voice.md                # DEFAULT voice (engine, voice, speed, language); configured: false
+│   ├── modes/definir-voz.md    # first-time voice setup conversation
+│   └── skills/                 # each skill = folder with SKILL.md → prometeo:<skill>
 │       ├── crear-prompt/ · documentar-plan/ · desglosar-tareas/ · resumen-notas/
 ├── projects/
-│   └── <fecha-slug>/
-│       ├── meta.json           # título, fechas, session_id de Claude
+│   └── <date-slug>/
+│       ├── meta.json           # title, dates, session_id (interviewer) and architect_session_id
+│       ├── brief.md            # latest brief from interviewer to Architect (hidden in the panel)
 │       ├── conversacion.md     # «**Tú** (hh:mm): …» / «**PROMETEO** (hh:mm): …»
 │       └── plan.md · prompt.md · notas.md · tareas.md
-├── backend/                    # Python 3.12, uv, FastAPI — paquete prometeo-backend
-│   ├── models/                 # kokoro-v1.0.onnx + voices-v1.0.bin (no versionados)
+├── backend/                    # Python 3.12, uv, FastAPI — package prometeo-backend
+│   ├── models/                 # kokoro-v1.0.onnx + voices-v1.0.bin (not versioned)
 │   └── app/
-│       ├── main.py             # REST + WebSocket /ws
-│       ├── brain.py            # Claude Agent SDK: streaming, resume, cancelación, MCP "prometeo"
-│       ├── speech.py           # faster-whisper (STT) + kokoro-onnx (TTS)
-│       ├── config.py           # rutas, env() con PROMETEO_* (fallback ORION_*), agent.md / voice.md
-│       └── projects.py         # CRUD de projects/
-├── frontend/                   # Vite + React + TypeScript — paquete prometeo-frontend
+│       ├── main.py             # REST (/api/state, /api/settings, /api/voice, /api/voices/{id}/sample, DELETE /api/projects/{slug}) + WebSocket /ws; model reloading
+│       ├── brain.py            # Claude Agent SDK: Brain (interviewer: streaming, resume, cancellation, MCP "prometeo" with encargar_entregables) + run_architect
+│       ├── speech.py           # faster-whisper (STT) + kokoro-onnx (TTS) on CPU/GPU, VOICES catalog, SAMPLE_TEXT
+│       ├── config.py           # paths, env() with PROMETEO_* (fallback ORION_*), agent.md / arquitecto.md / mcp-catalog.md / voice.md, settings.local.json
+│       └── projects.py         # CRUD for projects/ (including delete)
+├── frontend/                   # Vite + React + TypeScript — package prometeo-frontend
 │   └── src/
-│       ├── App.tsx             # vistas: Comenzar · DefinirVoz · Inicio · Proyectos · Conversación
-│       ├── session.ts          # WebSocket, mensajes, energía del reactor, micrófono
-│       ├── i18n.ts             # textos ES/EN de la interfaz
-│       ├── index.css           # tokens y estilos (botones cósmicos, cursor, switch)
-│       ├── scene/Scene.tsx     # reactor + galaxia (react-three-fiber)
+│       ├── App.tsx             # #/… routes, Nav and views: Comenzar · DefinirVoz · Inicio · Proyectos · Voces · Ajustes · Conversación
+│       ├── api.ts              # typed REST calls + playSample/stopSample (voice samples)
+│       ├── session.ts          # WebSocket, messages, reactor energy, microphone
+│       ├── i18n.ts             # ES/EN interface strings
+│       ├── index.css           # tokens and styles (cosmic buttons, cursor, navigation, pages, voices, settings)
+│       ├── scene/Scene.tsx     # reactor + galaxy (react-three-fiber)
 │       ├── audio/              # mic (VAD) · player · levels
 │       └── ui/
-│           ├── CosmicButton.tsx  # botón principal cósmico
-│           ├── CometCursor.tsx   # cursor cometa (canvas)
-│           └── cosmic.ts         # interacción cursor ↔ botones + cursorBus
-├── run.sh                      # backend :8765 + frontend :5173
+│           ├── CosmicButton.tsx  # main cosmic button
+│           ├── CometCursor.tsx   # comet cursor (canvas)
+│           └── cosmic.ts         # cursor ↔ buttons interaction + cursorBus
+├── settings.local.json         # this machine's settings (not versioned)
+├── run.sh                      # backend :8765 + frontend :5173 (Vite accepts PROMETEO_BACKEND to point at another backend)
 └── README.md
 ```
 
-Relacionado: [[03 Agente (agent.md)]] · [[04 Voz (voice.md)]] · [[05 Skills]] · [[06 UI Midnight Galaxy]]
+Related: [[03 Agent (agent.md)]] · [[04 Voice (voice.md)]] · [[05 Skills]] · [[06 UI Midnight Galaxy]]

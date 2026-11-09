@@ -1,11 +1,19 @@
 ---
 tags: [prometeo, prompt]
-creado: 2026-11-09
+created: 2026-11-09
 ---
-# Prompt: rebrand a PROMETEO + mejoras de UI
+# Prompt: rebrand to PROMETEO + UI improvements
 
-> [!info] Uso
-> Pegar en Claude Code con el directorio de trabajo en `/home/manuel/Work/prometeo`.
+> [!info] Usage
+> Paste into Claude Code with the working directory at the repo root (`~/Work/prometeo`).
+> The prompt is kept **verbatim in Spanish**, exactly as it was used. Paths inside it (`/home/manuel/…`, `~/Documentos/ORION`) belong to the machine and vault layout of that time.
+
+Summary of what it asks for, in order, one commit each:
+1. **Rebrand ORION → PROMETEO**: visible texts, agent, plugin/MCP identifiers (`prometeo:*`, `mcp__prometeo__*`), `PROMETEO_*` env vars with `ORION_*` fallback, package names, `role: 'agent'`, and compatibility with old `**ORION**` transcripts.
+2. **Cosmic START / OPEN PJ. / COMENZAR buttons**: rotating gradient border, nebula, micro-stars, glow synced with the reactor beat, diagonal shine; CSS only, accessible focus.
+3. **Comet cursor**: canvas head + speed-dependent tail, text caret over inputs, `prefers-reduced-motion`, paused when hidden.
+4. **Cursor ↔ buttons interaction**: `--mx/--my` light, magnetism, ripple and spark burst, decoupled via a small bus.
+5. **ES/EN switch (UI only)**: home-grown i18n, `localStorage`, `<html lang>`; voice and agent stay Spanish.
 
 ```markdown
 Trabajas en el repo `/home/manuel/Work/prometeo` (backend FastAPI + Claude Agent SDK en `backend/app/`,
@@ -92,12 +100,12 @@ Estética *midnight galaxy* (tokens: bg `#02030A`, cyan `#4FD1FF`, blue `#1E6BFF
 - Haz un commit por cada punto (1 a 5).
 ```
 
-Relacionado: [[06 UI Midnight Galaxy]] · [[10 Decisiones de implementación]]
+## Status (2026-11-09): executed
+Commits:
+- `836cc8d` Rename ORION to PROMETEO. Spoken texts write «Prometeo» so the TTS doesn't spell it out.
+- `aa99c18` Cosmic buttons (`ui/CosmicButton.tsx`), comet cursor (`ui/CometCursor.tsx`) and interaction (`ui/cosmic.ts`).
+- `d82dc83` ES/EN interface switch (`src/i18n.ts`); the voice stays Spanish.
 
-## Estado (2026-11-09): ejecutado
-Commits en `/home/manuel/Work/prometeo`:
-- `836cc8d` Renombra ORION a PROMETEO. En los textos hablados se escribe «Prometeo» para que el TTS no lo deletree.
-- `aa99c18` Botones cósmicos (`ui/CosmicButton.tsx`), cursor cometa (`ui/CometCursor.tsx`) e interacción (`ui/cosmic.ts`).
-- `d82dc83` Switch ES/EN de la interfaz (`src/i18n.ts`); la voz sigue en español.
+The repo folder and the vault were later renamed by hand. Several items have since changed (the ES/EN switch moved to Settings, START/OPEN PJ. became EMPEZAR/ABRIR PROYECTO) → [[06 UI Midnight Galaxy]].
 
-Pendiente a mano: renombrar la carpeta del repo y esta vault.
+Related: [[06 UI Midnight Galaxy]] · [[10 Implementation decisions]]

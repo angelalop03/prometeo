@@ -1,31 +1,71 @@
 ---
-tags: [prometeo, agente]
+tags: [prometeo, agent]
+updated: 2026-11-09
 ---
-# Agente — `agent.md`
+# Agent — `agent.md`
 
-Define quién es Prometeo. Se carga como *system prompt* del Claude Agent SDK.
+Prometeo is **two agents** that the user perceives as one:
 
-| Campo | Valor |
+| Agent | File | Default model | What it does |
+|---|---|---|---|
+| **Interviewer** | `agent/agent.md` (+ `agent/mcp-catalog.md`) | Sonnet, effort `low` | Talks to the user: asks, gathers information, suggests MCP connections and hands off the deliverables. Writes no files |
+| **Architect** | `agent/arquitecto.md` | Opus, effort `high` | In the background: reads the brief and `conversacion.md`, analyses in depth and writes the deliverables with the skills |
+
+```mermaid
+sequenceDiagram
+    participant P as User
+    participant E as Interviewer (Sonnet)
+    participant B as Backend (Session)
+    participant A as Architect (Opus)
+    P->>E: "dame el plan y las tareas"
+    E->>B: encargar_entregables(entregables, brief)
+    B-->>E: "started" (immediately)
+    E->>P: "Vale, lo preparo" and keeps talking
+    B->>A: background task (brief.md + conversacion.md)
+    A->>A: skills → plan.md, tareas.md
+    A-->>B: summary sentence
+    B->>P: artifacts + spoken notice (if nobody is talking)
+```
+
+This note mostly describes the interviewer: `agent.md` is its *system prompt* and its frontmatter feeds `/api/state`. The prompt itself is in Spanish.
+
+| Field | Value |
 |---|---|
-| Nombre | **Prometeo** (se cambia en `agent.md`) |
-| Rol | Arquitecto de planificación |
-| Finalidad | Convertir una idea difusa en un plan accionable en el menor número de turnos |
-| Personalidad | Directo, calmado, ligeramente futurista, sin relleno ni halagos |
-| Trato | Tutea, resume en una frase lo que entendió y cuestiona con respeto los supuestos débiles |
+| Name | **Prometeo** (changed in `agent.md`) |
+| Role | Planning interviewer («Entrevistador de planificación») |
+| Purpose | Turn a fuzzy idea into an actionable plan in as few turns as possible |
+| Personality | Direct, calm, slightly futuristic, no filler or flattery |
+| Manner | Informal "tú", restates in one sentence what it understood, respectfully challenges weak assumptions |
 
-## Método en 5 fases
-1. **Objetivo**: qué se quiere conseguir y para quién.
-2. **Contexto y restricciones**: tiempo, presupuesto, tecnología, personas.
-3. **Alcance**: qué entra y qué no.
-4. **Riesgos y decisiones**: qué puede fallar y qué hay que decidir.
-5. **Cierre**: preguntar qué entregables quiere e invocar la skill correspondiente.
+## 5-phase method
+1. **Goal**: what is to be achieved and for whom.
+2. **Context and constraints**: time, budget, technology, people.
+3. **Scope**: what's in and what's out.
+4. **Risks and decisions**: what can fail and what must be decided.
+5. **Wrap-up**: ask which deliverables are wanted and hand them to the Architect with `encargar_entregables`.
 
-## Reglas de voz
-- 1–3 frases por turno y como mucho 2 preguntas.
-- No leer código, listas largas ni el contenido de los documentos en voz alta.
+## Good questions
+- First, whatever **changes the plan most** (real deadline, for whom, what already exists, what failure looks like).
+- Concrete questions with options over generic open ones.
+- Don't ask what was already said or what can be assumed with a sensible default.
 
-## Seguridad
-- Herramientas permitidas: `Read`, `Write`, `Edit`, `Glob`, `Skill`. Sin Bash.
-- `cwd` limitado a `projects/<slug>/`. Un hook `PreToolUse` bloquea las escrituras fuera de esa carpeta.
+## MCP connections
+The interviewer suggests MCP servers useful for the project (GitHub, Figma, Postgres, Linear…), **only from the catalog** `agent/mcp-catalog.md` so it never invents names, in one sentence and at most one per turn. Suggestions go into the brief, and the Architect includes them in `plan.md` (section «Conexiones MCP recomendadas») and in `prompt.md`.
 
-Relacionado: [[05 Skills]] · [[PROMETEO]]
+## Handoff to the Architect
+- Own MCP tool `mcp__prometeo__encargar_entregables` with `entregables` (`prompt` · `plan` · `tareas` · `notas`) and `brief` (dense summary of what was gathered). Returns **immediately**.
+- The backend saves the brief to `brief.md` (hidden in the panel) and launches the Architect as a separate `ClaudeSDKClient` (`run_architect` in `brain.py`).
+- One handoff at a time per project; if one is already running, the interviewer says so.
+- When done: `artifacts` event, and Prometeo announces it aloud if nobody is speaking. If a turn is in progress, the notice reaches the interviewer as a `[sistema: …]` note on the next message.
+
+## Voice rules
+- 1–3 sentences per turn and at most 2 questions.
+- Never read code, long lists or document contents aloud.
+
+## Security
+- Interviewer: `Read`, `Glob` and `encargar_entregables`. Doesn't write.
+- Architect: `Read`, `Write`, `Edit`, `Glob`, `Skill`. No Bash.
+- Both with `cwd` in `projects/<slug>/` and a `PreToolUse` hook that blocks access outside that folder.
+- Each keeps its own session in `meta.json` (`session_id` and `architect_session_id`) so `resume` doesn't mix histories.
+
+Related: [[05 Skills]] · [[10 Implementation decisions]] · [[PROMETEO]]

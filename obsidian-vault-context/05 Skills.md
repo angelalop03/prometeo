@@ -1,17 +1,20 @@
 ---
 tags: [prometeo, skills]
+updated: 2026-11-09
 ---
 # Skills
 
-Cada skill es una carpeta `agent/skills/<nombre>/SKILL.md` en el formato del Claude Agent SDK. Las skills **escriben archivos**; Prometeo solo dice en voz alta que el documento está listo.
+Each skill is a folder `agent/skills/<name>/SKILL.md` in the Claude Agent SDK format (contents in Spanish). Skills **write files** and are used only by the **Architect** (Opus, background). The interviewer no longer invokes them: it hands off deliverables with `encargar_entregables` → [[03 Agent (agent.md)]].
 
-| Skill | Salida | Contenido |
+| Skill | Output | Content |
 |---|---|---|
-| `crear-prompt` | `prompt.md` | Prompt optimizado para otra IA: rol, contexto, tarea, restricciones, formato de salida |
-| `documentar-plan` | `plan.md` | Contexto, objetivos, alcance, fases, riesgos, siguiente paso |
-| `desglosar-tareas` | `tareas.md` | Checklist priorizado con estimaciones |
-| `resumen-notas` | `notas.md` | Decisiones tomadas y preguntas abiertas |
+| `crear-prompt` | `prompt.md` | Optimised prompt for another AI: role, context, task, constraints, output format |
+| `documentar-plan` | `plan.md` | Context, goals, scope, phases, risks, next step |
+| `desglosar-tareas` | `tareas.md` | Prioritised checklist with estimates |
+| `resumen-notas` | `notas.md` | Decisions made and open questions |
 
-Ideas futuras: `diagrama-mermaid`, `estimar-coste`, `exportar-a-obsidian`.
+`plan.md` also includes a **Conexiones MCP recomendadas** (recommended MCP connections) section when the interviewer suggested any.
 
-Relacionado: [[03 Agente (agent.md)]]
+Future ideas: `diagrama-mermaid`, `estimar-coste`, `exportar-a-obsidian`.
+
+Related: [[03 Agent (agent.md)]]

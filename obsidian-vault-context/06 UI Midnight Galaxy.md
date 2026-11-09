@@ -1,67 +1,73 @@
 ---
-tags: [prometeo, ui, diseño]
+tags: [prometeo, ui, design]
+updated: 2026-11-09
 ---
 # UI — Midnight Galaxy
 
 Figma: https://www.figma.com/design/ieSA764l6YXaKg9c4LgdYO
 
-## Vistas
-| Vista | Cuándo | Contenido |
+UI labels below are the Spanish ones shown by default (EN equivalents in `i18n.ts`).
+
+## Views
+| View | When | Content |
 |---|---|---|
-| **01 · Primera vez — Comenzar** | Primera ejecución (`voice.md` sin configurar) | Reactor *Despertar* (aura de picos) + botón **COMENZAR** |
-| **02 · Definir voz** | Tras pulsar COMENZAR | Reactor *Escuchando* (aura suave), estado arriba a la derecha y subtítulo de Prometeo |
-| **03 · Inicio** | Siguientes visitas | Reactor *Reposo* + **START** (conversación nueva) y **OPEN PJ.** (abrir proyecto) |
-| 04 · Conversación | Tras START | Implementada en código (falta en Figma): reactor, transcripción, caja de texto y panel de entregables |
-| 05 · Proyectos | Tras OPEN PJ. | Implementada en código (falta en Figma): lista de proyectos |
+| **01 · First time — Comenzar** | First run on that machine (no `configured` in `settings.local.json`) | *Despertar* (awakening) reactor with a spiky aura + **COMENZAR** and **ELEGIR VOZ** |
+| **02 · Definir voz** (voice setup) | After pressing COMENZAR | *Escuchando* (listening) reactor with a soft aura, status top right, Prometeo's caption, **VER VOCES** and **SALTAR** buttons |
+| **03 · Inicio** (home) | Later visits | *Reposo* (rest) reactor + **EMPEZAR / START** (new conversation) and **ABRIR PROYECTO / OPEN PROJECT** |
+| 04 · Conversación | After EMPEZAR | In code only (missing in Figma): reactor, transcript, text box and deliverables panel |
+| 05 · Proyectos | After ABRIR PROYECTO | In code only (missing in Figma): project list with a trash button and in-card confirmation |
+| 06 · Voces | Navigation or ELEGIR VOZ | In code only: one card per voice (native / accented) with ESCUCHAR and USAR, shared speed. The reactor switches to *speaking* during a sample |
+| 07 · Ajustes (settings) | Navigation | In code only: sections Voz, Rendimiento (CPU/GPU, Whisper), Cerebro (model, effort), Interfaz (language) and Primera configuración. Segmented controls (`.seg`) |
 
-Cabecera común: wordmark **PROMETEO** arriba a la izquierda + switch **ES | EN**; estado arriba a la derecha.
+Shared header: **PROMETEO** wordmark + navigation **Inicio · Proyectos · Voces · Ajustes** top left; status top right. Routes `#/inicio`, `#/proyectos`, `#/voces`, `#/ajustes`, `#/voz`, `#/comenzar`, `#/conversacion[/slug]`; browser back/forward work. A new conversation only goes into the URL once the user has said something, because empty projects are deleted on exit.
 
-> [!note] Figma desactualizado
-> Las vistas de Figma siguen con el nombre ORION y los botones antiguos.
+> [!note] Figma is out of date
+> The Figma views still use the ORION name and the old buttons.
 
 ## Tokens
-| Token | Valor |
+| Token | Value |
 |---|---|
 | `color/bg` | `#02030A` |
 | `color/cyan` | `#4FD1FF` |
 | `color/blue` | `#1E6BFF` |
 | `color/text` | `#D8F4FF` |
-| Títulos / botones | Orbitron |
-| Texto corrido | Inter Light |
+| Headings / buttons | Orbitron |
+| Body text | Inter Light |
 
-## Reactor: estados y animación
-- **Despertar / idle**: respiración lenta, latido cada ~1,2 s y aura de picos que se ondula.
-- **Escuchando**: los anillos reaccionan al volumen del micrófono.
-- **Pensando**: rotación rápida y partículas orbitando.
-- **Hablando**: el núcleo pulsa con la amplitud del TTS (AnalyserNode).
+## Reactor: states and animation
+- **Awakening / idle**: slow breathing, a beat every ~1.2 s and a rippling spiky aura.
+- **Listening**: rings react to microphone volume.
+- **Thinking**: fast rotation and orbiting particles.
+- **Speaking**: the core pulses with TTS amplitude (AnalyserNode).
 
-## Botones cósmicos — `ui/CosmicButton.tsx`
-START, OPEN PJ. y COMENZAR. Solo CSS (`index.css`, sección «Botones cósmicos»):
-- Borde con `conic-gradient` cyan → azul → violeta que gira (`@property --angle`, 6 s).
-- Nebulosa interior (radial-gradients) y micro-estrellas que titilan y derivan.
-- Glow exterior que late **sincronizado con el reactor** (doble pulso cada 1,2 s, `@property --glow`).
-- Destello diagonal (*shine*) cada ~4,2 s.
-- START es primario (`--i: 1`); OPEN PJ. secundario (`--i: 0.55`), mismo lenguaje visual.
+## Cosmic buttons — `ui/CosmicButton.tsx`
+EMPEZAR, ABRIR PROYECTO and COMENZAR. CSS only (`index.css`, section «Botones cósmicos»):
+- Border with a rotating cyan → blue → violet `conic-gradient` (`@property --angle`, 6 s).
+- Inner nebula (radial-gradients) and twinkling, drifting micro-stars.
+- Outer glow that beats **in sync with the reactor** (double pulse every 1.2 s, `@property --glow`).
+- Diagonal *shine* every ~4.2 s.
+- EMPEZAR is primary (`--i: 1`); ABRIR PROYECTO secondary (`--i: 0.55`), same visual language.
 
-## Cursor cometa — `ui/CometCursor.tsx`
-- Canvas a pantalla completa (`z-index: 50`, `pointer-events: none`), animado con `requestAnimationFrame`, sin re-renders de React.
-- Cabeza blanco-cyan con halo que late como el reactor; cola que se alarga con la velocidad; chispas al moverse y alguna en reposo.
-- Sobre inputs: cursor de texto nativo y cometa reducido. Solo con `pointer: fine` (en táctil no aparece).
-- `prefers-reduced-motion`: solo la cabeza, sin cola ni chispas. Se pausa con la pestaña oculta.
+## Comet cursor — `ui/CometCursor.tsx`
+- Full-screen canvas (`z-index: 50`, `pointer-events: none`), animated with `requestAnimationFrame`, no React re-renders.
+- White-cyan head with a halo that beats like the reactor; tail that lengthens with speed; sparks when moving and occasionally at rest.
+- Pull towards the centre of the hovered button **capped at 4 px** (`MAX_PULL`): the comet never drifts away from the real click point.
+- Over inputs: native text cursor and a smaller comet. Only with `pointer: fine` (absent on touch).
+- `prefers-reduced-motion`: head only, no tail or sparks. Pauses while the tab is hidden.
 
-## Interacción cursor ↔ botones — `ui/cosmic.ts`
-Un único listener delegado en el documento:
-- Luz bajo el cursor: variables `--mx` / `--my` → `radial-gradient` dentro del botón.
-- **Magnetismo**: el botón cósmico más cercano (radio 80 px) se desplaza unos px hacia el cursor y vuelve con *spring*; al acercarse se activa un anillo rápido y brillante.
-- Click: onda (*ripple*) desde el punto de click + ráfaga de chispas del cometa.
-- Versión suave en `.btn.small`, tarjetas de proyecto, `.iconbtn` y pestañas.
-- `cursorBus` comunica botón bajo el cursor y ráfagas al cometa sin acoplarlos (el cometa se siente atraído hacia el centro del botón).
+## Cursor ↔ buttons interaction — `ui/cosmic.ts`
+A single delegated listener on the document:
+- Light under the cursor: `--mx` / `--my` variables → `radial-gradient` inside the button.
+- **Magnetism**: the nearest cosmic button (80 px radius) shifts a few px towards the cursor and springs back; on approach a fast bright ring lights up.
+- Click: *ripple* from the click point + a burst of comet sparks.
+- Softer version on `.btn.small`, project cards, `.iconbtn`, tabs, `.nav button` and `.seg button`.
+- `cursorBus` tells the comet about the hovered button and bursts without coupling them (the comet is drawn towards the button centre, at most 4 px).
 
-## Idioma de la interfaz — `src/i18n.ts`
-- Switch **ES | EN** junto al wordmark. Solo cambia la interfaz: **la voz, el agente y la transcripción siguen en español**.
-- i18n propio sin librería: `t('clave')`, diccionarios `es` / `en`; persiste en `localStorage` (`prometeo.lang`) y actualiza `<html lang>`. Por defecto, español.
-- En inglés se muestra «Voice: Spanish only (for now)». COMENZAR → START; START y OPEN PJ. no cambian.
+## Interface language — `src/i18n.ts`
+- **ES | EN** selector in **Ajustes → Interfaz** (formerly next to the wordmark). Only the interface changes: **voice, agent and transcription stay in Spanish**.
+- Home-grown i18n, no library: `t('key')`, `es` / `en` dictionaries; persisted in `localStorage` (`prometeo.lang`) and updates `<html lang>`. Spanish by default.
+- In English it shows «Voice: Spanish only (for now)». Buttons: COMENZAR → START, EMPEZAR → START, ABRIR PROYECTO → OPEN PROJECT (keys `begin`, `start`, `openProject`).
 
-Librerías: `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `react-markdown`.
+Libraries: `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `react-markdown`.
 
-Relacionado: [[09 Prompts de logotipo]] · [[01 Arquitectura]]
+Related: [[09 Logo prompts]] · [[01 Architecture]]

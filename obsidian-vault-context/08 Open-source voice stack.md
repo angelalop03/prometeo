@@ -1,19 +1,20 @@
 ---
-tags: [prometeo, voz, investigación]
+tags: [prometeo, voice, research]
+updated: 2026-11-09
 ---
-# Stack de voz open source
+# Open-source voice stack
 
-> [!info] ¿Y ElevenLabs?
-> Es de pago. El plan gratuito da pocos minutos al mes y no permite uso comercial. Por eso se descartó para la v1.
+> [!info] What about ElevenLabs?
+> It's paid. The free plan gives few minutes per month and doesn't allow commercial use, so it was ruled out for v1.
 
-| Parte | Opción | Notas |
+| Part | Option | Notes |
 |---|---|---|
-| Voz → texto (STT) | **faster-whisper** / whisper.cpp | Muy buen español; funciona en CPU |
-| Texto → voz (TTS) | **Kokoro** ✅ v1 | Modelo de 82M, licencia Apache, calidad alta, tiene español |
-| | **Chatterbox** (F5) | Licencia MIT, clona voz con unos segundos de audio; necesita GPU para ir fluido |
-| | Piper | Muy rápido y ligero; menos natural |
-| | XTTS-v2 | Buena clonación, pero licencia no comercial |
-| Detección de voz (VAD) | **Silero VAD** ✅ | Detecta inicio y fin de turno y el barge-in |
-| Alternativa sin servidor | Web Speech API | Gratis; la calidad depende del navegador |
+| Speech → text (STT) | **faster-whisper** / whisper.cpp | Very good Spanish; runs on CPU. On an NVIDIA GPU (`float16`) with `nvidia-cublas-cu12` + `nvidia-cudnn-cu12` in the venv: ~10× faster |
+| Text → speech (TTS) | **Kokoro** ✅ v1 | 82M model, Apache licence, high quality; 3 native Spanish voices (plus 6 accented ones used in the catalog). GPU with `onnxruntime-gpu[cuda,cudnn]` installed on top of `onnxruntime`: ~6× faster |
+| | **Chatterbox** (F5) | MIT licence, clones a voice from a few seconds of audio; needs a GPU to be fluid |
+| | Piper | Very fast and light; less natural |
+| | XTTS-v2 | Good cloning, but non-commercial licence |
+| Voice activity detection (VAD) | **Silero VAD** ✅ | Detects turn start/end and barge-in |
+| Serverless alternative | Web Speech API | Free; quality depends on the browser |
 
-Relacionado: [[04 Voz (voice.md)]]
+Related: [[04 Voice (voice.md)]]
