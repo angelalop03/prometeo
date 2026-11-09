@@ -106,6 +106,6 @@ Commits:
 - `aa99c18` Cosmic buttons (`ui/CosmicButton.tsx`), comet cursor (`ui/CometCursor.tsx`) and interaction (`ui/cosmic.ts`).
 - `d82dc83` ES/EN interface switch (`src/i18n.ts`); the voice stays Spanish.
 
-The repo folder and the vault were later renamed by hand. Several items have since changed (the ES/EN switch moved to Settings, START/OPEN PJ. became EMPEZAR/ABRIR PROYECTO) → [[06 UI Midnight Galaxy]].
+The repo folder and the vault were later renamed by hand. Several items have since changed (the ES/EN switch is now in Settings and top right of the header, START/OPEN PJ. became EMPEZAR/ABRIR PROYECTO) → [[06 UI Midnight Galaxy]].
 
 Related: [[06 UI Midnight Galaxy]] · [[10 Implementation decisions]]

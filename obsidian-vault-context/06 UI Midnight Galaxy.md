@@ -19,7 +19,7 @@ UI labels below are the Spanish ones shown by default (EN equivalents in `i18n.t
 | 06 · Voces | Navigation or ELEGIR VOZ | In code only: one card per voice (native / accented) with ESCUCHAR and USAR, shared speed. The reactor switches to *speaking* during a sample |
 | 07 · Ajustes (settings) | Navigation | In code only: sections Voz, Rendimiento (CPU/GPU, Whisper), Cerebro (model, effort), Interfaz (language) and Primera configuración. Segmented controls (`.seg`) |
 
-Shared header: **PROMETEO** wordmark + navigation **Inicio · Proyectos · Voces · Ajustes** top left; status top right. Routes `#/inicio`, `#/proyectos`, `#/voces`, `#/ajustes`, `#/voz`, `#/comenzar`, `#/conversacion[/slug]`; browser back/forward work. A new conversation only goes into the URL once the user has said something, because empty projects are deleted on exit.
+Shared header: **PROMETEO** wordmark + navigation **Inicio · Proyectos · Voces · Ajustes** top left; **ES | EN** switch fixed top right (`.langswitch`, outside `.topleft`); status (project · listening) just left of the switch (`.status { right: 196px }`). Under 760 px wide the switch goes to the corner (16 px), the status drops below it (`top: 84px`) and toasts move down to `top: 112px`; `.inputbar input` has `min-width: 0` so the text box can shrink. Routes `#/inicio`, `#/proyectos`, `#/voces`, `#/ajustes`, `#/voz`, `#/comenzar`, `#/conversacion[/slug]`; browser back/forward work. A new conversation only goes into the URL once the user has said something, because empty projects are deleted on exit.
 
 > [!note] Figma is out of date
 > The Figma views still use the ORION name and the old buttons.
@@ -64,7 +64,7 @@ A single delegated listener on the document:
 - `cursorBus` tells the comet about the hovered button and bursts without coupling them (the comet is drawn towards the button centre, at most 4 px).
 
 ## Interface language — `src/i18n.ts`
-- **ES | EN** selector in **Ajustes → Interfaz** (formerly next to the wordmark). Only the interface changes: **voice, agent and transcription stay in Spanish**.
+- **ES | EN** selector in two places: the header switch, top right (`LangSwitch` in `App.tsx`), and **Ajustes → Interfaz** (`Segmented`). Both use the same `lang` state. It used to sit next to the wordmark inside `.topleft`. Only the interface changes: **voice, agent and transcription stay in Spanish**.
 - Home-grown i18n, no library: `t('key')`, `es` / `en` dictionaries; persisted in `localStorage` (`prometeo.lang`) and updates `<html lang>`. Spanish by default.
 - In English it shows «Voice: Spanish only (for now)». Buttons: COMENZAR → START, EMPEZAR → START, ABRIR PROYECTO → OPEN PROJECT (keys `begin`, `start`, `openProject`).
 

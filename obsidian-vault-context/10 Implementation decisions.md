@@ -44,7 +44,7 @@ Reason: on the first run on another computer **the voice setup didn't appear**. 
 | Kokoro on GPU | — | Own ONNX session (`Kokoro.from_session`) with `CUDAExecutionProvider` when available; `onnxruntime-gpu[cuda,cudnn]==1.31.1` installed **on top of** `onnxruntime` (same version), ONNX log level 3 to hide harmless Memcpy warnings | `kokoro-onnx` requires `onnxruntime` and `uv run` would reinstall it if removed, so both stay; re-run the install if `onnxruntime` is upgraded. Needs a CUDA 13 driver |
 | Voices | 3 native | 3 native + 6 accented (it, pt, fr) | More timbres; labelled as accented |
 | Navigation | Only wordmark → Inicio and the `#view=` shortcut | **Inicio · Proyectos · Voces · Ajustes** bar and `#/view[/slug]` routes with `pushState` | Browser back/forward buttons work |
-| ES/EN switch | Next to the wordmark | In **Ajustes → Interfaz** | Its header slot went to navigation |
+| ES/EN switch | Next to the wordmark | In **Ajustes → Interfaz**, and in the header fixed **top right**, with the status shifted left of it (`5bf890e`, 2026-11-09) | Its slot by the wordmark went to navigation; top right keeps it reachable from every view without crowding the nav. Mobile layout stacks status and toasts below it |
 | Deleting projects | Didn't exist | Trash button on each card, in-card confirmation and `DELETE /api/projects/{slug}` | No browser `confirm()`; `project_dir()` prevents escaping `projects/` |
 | Model locks | — | One lock for STT, one for TTS | Loading Whisper doesn't block the voice |
 
