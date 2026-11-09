@@ -19,7 +19,7 @@ prometeo/
 │       ├── crear-prompt/ · documentar-plan/ · desglosar-tareas/ · resumen-notas/
 ├── projects/
 │   └── <date-slug>/
-│       ├── meta.json           # title, dates, session_id (interviewer) and architect_session_id
+│       ├── meta.json           # title, dates, session_id/architect_session_id + session_backend/architect_backend
 │       ├── brief.md            # latest brief from interviewer to Architect (hidden in the panel)
 │       ├── conversacion.md     # «**Tú** (hh:mm): …» / «**PROMETEO** (hh:mm): …»
 │       └── plan.md · prompt.md · notas.md · tareas.md
@@ -30,6 +30,7 @@ prometeo/
 │       ├── brain.py            # Claude Agent SDK: Brain (interviewer: streaming, resume, cancellation, MCP "prometeo" with encargar_entregables) + run_architect
 │       ├── speech.py           # faster-whisper (STT) + kokoro-onnx (TTS) on CPU/GPU, VOICES catalog, SAMPLE_TEXT
 │       ├── config.py           # paths, env() with PROMETEO_* (fallback ORION_*), agent.md / arquitecto.md / mcp-catalog.md / voice.md, settings.local.json
+│       ├── local.py            # LM Studio: list models, load with context, per-session env for local models
 │       └── projects.py         # CRUD for projects/ (including delete)
 ├── frontend/                   # Vite + React + TypeScript — package prometeo-frontend
 │   └── src/
