@@ -87,8 +87,8 @@ export default function App() {
         <div className="topleft">
           <button className="wordmark" onClick={goHome} title={t('home')}>PROMETEO</button>
           {view.name !== 'loading' && <Nav current={view.name} go={go} />}
-          <LangSwitch lang={lang} setLang={setLang} />
         </div>
+        <LangSwitch lang={lang} setLang={setLang} />
         <ViewBoundary key={view.name} onHome={goHome}>
         {view.name === 'comenzar' && (
           <Comenzar setReactor={setReactor} onStart={() => go({ name: 'voz' })} onChoose={() => go({ name: 'voces' })} />

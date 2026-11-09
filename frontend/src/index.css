@@ -374,7 +374,16 @@ input[type='range'] { accent-color: var(--cyan); width: 160px; }
 }
 
 /* ---- Switch de idioma (cabecera) ---- */
+.langswitch { position: fixed; top: 30px; right: 44px; }
 .langswitch button { padding: 5px 8px; font-size: 10px; letter-spacing: 0.16em; }
+/* El estado (proyecto · escuchando) se aparta a la izquierda del switch */
+.status { right: 196px; }
+.inputbar input { min-width: 0; }
+@media (max-width: 760px) {
+  .langswitch { top: 16px; right: 16px; }
+  .status { right: 16px; top: 84px; }
+  .toast { top: 112px; }
+}
 
 /* ---- Turnos (hablar y pulsar TERMINAR) ---- */
 .inputbar .turnmode { flex-shrink: 0; }
