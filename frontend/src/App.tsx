@@ -7,7 +7,7 @@ import CosmicButton from './ui/CosmicButton'
 import { installCosmicInteractions } from './ui/cosmic'
 import { locale, t, useLang, type Lang } from './i18n'
 import { unlockAudio, useSession, type Artifact, type Msg, type ProjectMeta } from './session'
-import { api, playSample, stopSample, type AppState, type Settings, type VoiceInfo } from './api'
+import { api, playSample, stopSample, type AppState, type LocalModels, type Settings, type VoiceInfo } from './api'
 
 type View =
   | { name: 'loading' }
@@ -87,6 +87,7 @@ export default function App() {
         <div className="topleft">
           <button className="wordmark" onClick={goHome} title={t('home')}>PROMETEO</button>
           {view.name !== 'loading' && <Nav current={view.name} go={go} />}
+          <LangSwitch lang={lang} setLang={setLang} />
         </div>
         <ViewBoundary key={view.name} onHome={goHome}>
         {view.name === 'comenzar' && (
@@ -157,6 +158,20 @@ function Nav({ current, go }: { current: View['name']; go: (v: View) => void }) 
         </button>
       ))}
     </nav>
+  )
+}
+
+/** ES | EN siempre visible (solo la interfaz; la voz sigue en español). Comparte estado con Ajustes vía App. */
+function LangSwitch({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+  return (
+    <div className="seg langswitch" role="radiogroup" aria-label={t('langLabel')} title={t('langHint')}>
+      {(['es', 'en'] as const).map((l) => (
+        <button key={l} role="radio" aria-checked={lang === l} className={lang === l ? 'active' : ''}
+          onClick={() => lang !== l && setLang(l)}>
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -411,6 +426,37 @@ function Row({ label, hint, children }: { label: string; hint?: React.ReactNode;
 
 const DEVICE_LABELS = { cpu: 'CPU', cuda: 'GPU' } as const
 
+const LOCAL = 'local:'
+
+/** Modelo de Claude (botones) o local de LM Studio (botón LOCAL + desplegable). */
+function ModelPicker({ label, value, claude, local, onChange }: {
+  label: string; value: string; claude: string[]; local: LocalModels | null; onChange: (v: string) => void
+}) {
+  const isLocal = value.startsWith(LOCAL)
+  const id = isLocal ? value.slice(LOCAL.length) : ''
+  const models = local?.models ?? []
+  const pick = (o: string) => {
+    if (o !== 'local') return onChange(o)
+    const first = models.find((m) => m.loaded) ?? models[0]
+    if (first) onChange(LOCAL + first.id)
+  }
+  return (
+    <div className="model-pick">
+      <Segmented label={label} value={isLocal ? 'local' : value} options={[...claude, 'local']} labels={{ local: t('set.localBtn') }}
+        isDisabled={(o) => o === 'local' && !isLocal && !models.length} onChange={pick} />
+      {isLocal && (
+        <select className="select" value={id} aria-label={`${label} · ${t('set.localBtn')}`}
+          onChange={(e) => onChange(LOCAL + e.target.value)}>
+          {!models.some((m) => m.id === id) && <option value={id}>{id} · {t('set.localMissing')}</option>}
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>{m.name}{m.params ? ` · ${m.params}` : ''}{m.loaded ? ` · ${t('set.localLoaded')}` : ''}</option>
+          ))}
+        </select>
+      )}
+    </div>
+  )
+}
+
 function Ajustes({ setReactor, lang, setLang, onVoices, onTalk, onReset }: {
   setReactor: SetReactor; lang: Lang; setLang: (l: Lang) => void
   onVoices: () => void; onTalk: () => void; onReset: () => void
@@ -420,6 +466,23 @@ function Ajustes({ setReactor, lang, setLang, onVoices, onTalk, onReset }: {
   const [testing, setTesting] = useState(false)
   const [toast, setToast] = useState<{ msg: string; error?: boolean } | null>(null)
   const speedTimer = useRef<number | undefined>(undefined)
+  const [local, setLocal] = useState<LocalModels | null>(null)
+  const [url, setUrl] = useState('')
+  const [checking, setChecking] = useState(false)
+
+  const checkLocal = useCallback(async () => {
+    setChecking(true)
+    try {
+      const r = await api.localModels()
+      setLocal(r)
+      setUrl(r.url)
+    } catch {
+      setLocal(null)
+    } finally {
+      setChecking(false)
+    }
+  }, [])
+  useEffect(() => { void checkLocal() }, [checkLocal])
 
   const refresh = useCallback(() => api.state().then((s) => { setState(s); return s }), [])
   useEffect(() => { refresh().then((s) => setSpeed(s.voice.speed)).catch(() => setToast({ msg: t('set.error'), error: true })) }, [refresh])
@@ -533,7 +596,7 @@ function Ajustes({ setReactor, lang, setLang, onVoices, onTalk, onReset }: {
         <section>
           <h3 className="group">{t('set.brain')}</h3>
           <Row label={t('set.model')} hint={t('set.modelHint')}>
-            <Segmented label={t('set.model')} value={settings.claude_model} options={choices.claude_model} onChange={(v) => update({ claude_model: v })} />
+            <ModelPicker label={t('set.model')} value={settings.claude_model} claude={choices.claude_model} local={local} onChange={(v) => update({ claude_model: v })} />
           </Row>
           <Row label={t('set.effort')} hint={t('set.nextSession')}>
             <Segmented label={t('set.effort')} value={settings.effort} options={choices.effort}
@@ -541,12 +604,38 @@ function Ajustes({ setReactor, lang, setLang, onVoices, onTalk, onReset }: {
               onChange={(v) => update({ effort: v })} />
           </Row>
           <Row label={t('set.architectModel')} hint={t('set.architectHint')}>
-            <Segmented label={t('set.architectModel')} value={settings.architect_model} options={choices.architect_model} onChange={(v) => update({ architect_model: v })} />
+            <ModelPicker label={t('set.architectModel')} value={settings.architect_model} claude={choices.architect_model} local={local} onChange={(v) => update({ architect_model: v })} />
           </Row>
           <Row label={t('set.architectEffort')} hint={t('set.nextSession')}>
             <Segmented label={t('set.architectEffort')} value={settings.architect_effort} options={choices.architect_effort}
               labels={{ medium: t('effort.medium'), high: t('effort.high'), xhigh: t('effort.xhigh'), max: t('effort.max') }}
               onChange={(v) => update({ architect_effort: v })} />
+          </Row>
+          <Row label={t('set.titleModel')} hint={t('set.titleHint')}>
+            <ModelPicker label={t('set.titleModel')} value={settings.title_model} claude={choices.title_model} local={local} onChange={(v) => update({ title_model: v })} />
+          </Row>
+        </section>
+
+        <section>
+          <h3 className="group">{t('set.local')}</h3>
+          <Row label={t('set.localServer')} hint={
+            checking ? <span className="status-line">{t('set.localChecking')}</span>
+              : local?.reachable ? <span className="status-line">{t('set.localOk', { n: String(local.models.length) })}</span>
+                : <span className="status-line warn">{t('set.localDown')}</span>
+          }>
+            <form className="row-ctl" onSubmit={(e) => {
+              e.preventDefault()
+              void (url.trim() && url.trim() !== settings.lmstudio_url ? update({ lmstudio_url: url.trim() }) : Promise.resolve()).then(checkLocal)
+            }}>
+              <input className="field" value={url} onChange={(e) => setUrl(e.target.value)} spellCheck={false}
+                aria-label={t('set.localServer')} placeholder="http://localhost:1234" />
+              <button className="btn secondary small" type="submit" disabled={checking}>{t('set.localCheck')}</button>
+            </form>
+          </Row>
+          <Row label={t('set.localContext')} hint={t('set.localContextHint')}>
+            <Segmented label={t('set.localContext')} value={settings.local_context} options={choices.local_context}
+              labels={{ '8192': '8K', '16384': '16K', '32768': '32K', '65536': '64K' }}
+              onChange={(v) => update({ local_context: v })} />
           </Row>
         </section>
 
@@ -619,9 +708,43 @@ function Caption({ messages, compact }: { messages: Msg[]; compact?: boolean }) 
 
 function InputBar({ s, placeholder }: { s: ReturnType<typeof useSession>; placeholder: string }) {
   const [text, setText] = useState('')
+  const manual = s.turnMode === 'manual'
+  const { finishTurn, micOn } = s
+
+  // Espacio = TERMINAR en modo por turnos (salvo escribiendo en un campo de texto).
+  useEffect(() => {
+    if (!manual || !micOn) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || e.repeat) return
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      e.preventDefault()
+      void finishTurn()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [manual, micOn, finishTurn])
+
   return (
+    <>
+    {manual && micOn && (
+      <div className={`turnhint ${s.capturing ? 'live' : ''}`} aria-live="polite">
+        {s.capturing ? t('turn.capturing') : t('turn.waiting')}
+      </div>
+    )}
     <form className="inputbar" onSubmit={(e) => { e.preventDefault(); s.sendText(text); setText('') }}>
       <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label={t('message')} />
+      <button type="button" className={`btn secondary small turnmode ${manual ? 'on' : ''}`} aria-pressed={manual}
+        title={manual ? t('turn.manualHint') : t('turn.autoHint')}
+        onClick={() => s.setTurnMode(manual ? 'auto' : 'manual')}>
+        {manual ? t('turn.manual') : t('turn.auto')}
+      </button>
+      {manual && micOn && (
+        <button type="button" className={`btn small finish ${s.capturing ? 'live' : ''}`} disabled={!s.capturing}
+          title={t('turn.finishHint')} onClick={() => void finishTurn()}>
+          {t('turn.finish')}
+        </button>
+      )}
       {s.playing && <button type="button" className="iconbtn" title={t('silence')} onClick={s.interrupt}>■</button>}
       <button
         type="button"
@@ -633,6 +756,7 @@ function InputBar({ s, placeholder }: { s: ReturnType<typeof useSession>; placeh
       </button>
       <button type="submit" className="iconbtn" disabled={!text.trim() || !s.connected} title={t('send')}>➤</button>
     </form>
+    </>
   )
 }
 
@@ -659,16 +783,26 @@ function Transcript({ messages }: { messages: Msg[] }) {
 
 function Artifacts({ artifacts }: { artifacts: Artifact[] }) {
   const [active, setActive] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  // COPIADO pertenece a una pestaña concreta: al cambiar de .md vuelve a COPIAR.
+  const [copiedFor, setCopiedFor] = useState<string | null>(null)
+  const copyTimer = useRef<number | undefined>(undefined)
+  useEffect(() => () => clearTimeout(copyTimer.current), [])
   const newest = useMemo(() => [...artifacts].sort((a, b) => b.mtime - a.mtime)[0]?.name ?? null, [artifacts])
   useEffect(() => { if (newest) setActive(newest) }, [newest])
   const cur = artifacts.find((a) => a.name === active) ?? artifacts[0]
 
   const copy = async () => {
     if (!cur) return
-    await navigator.clipboard.writeText(cur.content)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    const name = cur.name
+    try {
+      await navigator.clipboard.writeText(cur.content)
+    } catch {
+      setCopiedFor(null)
+      return
+    }
+    setCopiedFor(name)
+    clearTimeout(copyTimer.current)
+    copyTimer.current = window.setTimeout(() => setCopiedFor(null), 1500)
   }
   const download = () => {
     if (!cur) return
@@ -684,7 +818,7 @@ function Artifacts({ artifacts }: { artifacts: Artifact[] }) {
         {t('deliverables')}
         {cur && (
           <span style={{ display: 'flex', gap: 6 }}>
-            <button className="btn secondary small" onClick={copy}>{copied ? t('copied') : t('copy')}</button>
+            <button className="btn secondary small" onClick={copy}>{copiedFor === cur.name ? t('copied') : t('copy')}</button>
             <button className="btn secondary small" onClick={download}>.MD</button>
           </span>
         )}

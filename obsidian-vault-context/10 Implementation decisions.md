@@ -76,6 +76,22 @@ Tested against a test backend on `:8799` over WebSocket (text): see latencies in
 > [!tip] Lesson
 > With the native cursor hidden (`cursor: none`), any visual offset of the drawn cursor must be small and bounded; otherwise what you see and where you click stop matching.
 
+## Local models, turn mode and better transcription (2026-11-09)
+
+| Topic | Before | Now | Why |
+|---|---|---|---|
+| Model providers | Claude only (subscription) | Each of the three model slots (`claude_model` = interviewer, `architect_model`, `title_model`) accepts `haiku`/`sonnet`/`opus` **or** `local:<LM Studio id>` | Run fully offline / without spending subscription limits |
+| How local models plug in | — | LM Studio serves an **Anthropic-compatible API** on `localhost:1234`; `local.prepare()` passes `ANTHROPIC_BASE_URL` etc. through the SDK's per-session `env` (never `os.environ`) | Same Claude Agent SDK code path for both; Claude sessions in the same process stay on Claude |
+| Background "haiku" calls | — | `ANTHROPIC_DEFAULT_{HAIKU,SONNET,OPUS}_MODEL` and `ANTHROPIC_SMALL_FAST_MODEL` point at the local model; non-essential traffic disabled | Claude Code's side calls would otherwise hit a model LM Studio doesn't have |
+| Context length | — | `local_context` (8K…64K, default 32K); the model is unloaded/reloaded if LM Studio auto-loaded it with less | LM Studio's auto-load uses 8K, too small for the system prompt + skills |
+| Resuming sessions | `resume=session_id` | Only if `session_backend` / `architect_backend` in `meta.json` matches the current provider; otherwise the agent is told to re-read `conversacion.md` | Local reasoning blocks have no valid Claude signature and vice versa |
+| Model list | — | `GET /api/local-models` (LLMs only, ~1.5 s timeout); **LOCAL** option in Ajustes → Cerebro | Pick any model downloaded in LM Studio (`~/.lmstudio/models`) |
+| Turn mode | VAD always decides when you've finished | `auto` (VAD) or `manual`: chunks are buffered and sent joined (0.2 s gaps) when you press **TERMINAR**; stored in `localStorage` (`prometeo.turnMode`) | Long thinking pauses no longer cut you off |
+| Whisper accuracy | `beam_size=1`, no prompt | `beam_size` 5 on GPU / 3 on CPU, Spanish `initial_prompt` with project vocabulary; `large-v3-turbo` added (multilingual models only) | Better Spanish and technical words; the prompt echo on noise is filtered |
+
+> [!warning] VRAM
+> Every distinct local model takes its own GPU memory. With 8 GB (RTX 4060), use the **same** local model for all slots, and remember Whisper and Kokoro also live on the GPU.
+
 ## Vault language (2026-11-09)
 This vault was switched from Spanish to English (notes, file names, frontmatter fields) at the user's request: it is context for Claude, and English is what Claude reads best. The app, its prompts and skills stay in Spanish.
 

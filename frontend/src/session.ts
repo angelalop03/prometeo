@@ -32,6 +32,22 @@ const TOOL_LABELS: Record<string, () => string> = {
   mcp__prometeo__finish_voice_setup: () => t('tool.voiceSaved'),
 }
 
+/** auto: el VAD decide cuándo acabas. manual: hablas por tramos y pulsas TERMINAR. */
+export type TurnMode = 'auto' | 'manual'
+const TURN_KEY = 'prometeo.turnMode'
+function initialTurnMode(): TurnMode {
+  try { return localStorage.getItem(TURN_KEY) === 'manual' ? 'manual' : 'auto' } catch { return 'auto' }
+}
+
+/** Une los tramos con ~0,2 s de silencio para que Whisper no pegue palabras. */
+function joinChunks(chunks: Float32Array[]): Float32Array {
+  const gap = 3200
+  const out = new Float32Array(chunks.reduce((n, c) => n + c.length, 0) + gap * (chunks.length - 1))
+  let at = 0
+  chunks.forEach((c, i) => { out.set(c, at); at += c.length + (i < chunks.length - 1 ? gap : 0) })
+  return out
+}
+
 export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null; enabled: boolean }) {
   const [connected, setConnected] = useState(false)
   const [messages, setMessages] = useState<Msg[]>([])
@@ -43,11 +59,18 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
   const [voiceDone, setVoiceDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [turnMode, setTurnModeState] = useState<TurnMode>(initialTurnMode)
+  const [buffered, setBuffered] = useState(false)
+  const [speechActive, setSpeechActive] = useState(false)
 
   const ws = useRef<WebSocket | null>(null)
   const turn = useRef(0)
   const minTurn = useRef(0)
   const pendingAudioTurn = useRef<number | null>(null)
+  const turnModeRef = useRef(turnMode)
+  const chunks = useRef<Float32Array[]>([])
+  /** Se pulsó TERMINAR mientras el VAD aún no había cerrado el último tramo. */
+  const pendingFinish = useRef(false)
 
   const send = useCallback((data: object | ArrayBuffer) => {
     const s = ws.current
@@ -160,6 +183,37 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
     }
   }, [opts.enabled, opts.mode, opts.project])
 
+  const sendAudio = useCallback((audio: Float32Array) => {
+    send(audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer)
+  }, [send])
+
+  const clearTurn = useCallback(() => {
+    chunks.current = []
+    pendingFinish.current = false
+    setBuffered(false)
+  }, [])
+
+  /** Envía lo acumulado en modo por turnos como una sola frase. */
+  const flushTurn = useCallback(() => {
+    const parts = chunks.current
+    clearTurn()
+    if (parts.length) sendAudio(joinChunks(parts))
+  }, [clearTurn, sendAudio])
+
+  /** Botón TERMINAR: si el VAD sigue dentro de un tramo, espera a que lo entregue. */
+  const finishTurn = useCallback(async () => {
+    const m = await getMic()
+    if (m.inSpeech) pendingFinish.current = true
+    else flushTurn()
+  }, [flushTurn])
+
+  const setTurnMode = useCallback((mode: TurnMode) => {
+    turnModeRef.current = mode
+    setTurnModeState(mode)
+    try { localStorage.setItem(TURN_KEY, mode) } catch { /* sin persistencia */ }
+    if (mode === 'auto') flushTurn()
+  }, [flushTurn])
+
   // Micrófono: singleton de módulo; cada sesión solo cambia los callbacks.
   const enableMic = useCallback(async () => {
     try {
@@ -167,7 +221,17 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
       m.setCallbacks({
         // Barge-in solo si PROMETEO está hablando; si está pensando, esperamos a la transcripción.
         onSpeechStart: () => { if (player?.playing) interrupt() },
-        onUtterance: (audio) => send(audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer),
+        onUtterance: (audio) => {
+          if (turnModeRef.current === 'auto') { sendAudio(audio); return }
+          chunks.current.push(audio)
+          setBuffered(true)
+          if (pendingFinish.current) flushTurn()
+        },
+        onSpeechActive: (active) => {
+          setSpeechActive(active)
+          // Falso positivo del VAD tras pulsar TERMINAR: enviamos lo que ya había.
+          if (!active && pendingFinish.current) flushTurn()
+        },
       })
       await m.start()
       setMicOn(true)
@@ -176,15 +240,21 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
       setMicError(t('micError'))
       console.error(e)
     }
-  }, [interrupt, send])
+  }, [interrupt, sendAudio, flushTurn])
 
   const disableMic = useCallback(async () => {
     await (await getMic()).pause()
+    clearTurn()
+    setSpeechActive(false)
     setMicOn(false)
-  }, [])
+  }, [clearTurn])
 
-  // Al salir de la vista, el micrófono se pausa (no se destruye).
-  useEffect(() => () => { void micPromise?.then((m) => m.pause()) }, [])
+  // Al salir de la vista, el micrófono se pausa (no se destruye) y se descarta lo no enviado.
+  useEffect(() => () => {
+    chunks.current = []
+    pendingFinish.current = false
+    void micPromise?.then((m) => m.pause())
+  }, [])
 
   const sendText = useCallback((text: string) => {
     if (!text.trim()) return
@@ -195,7 +265,13 @@ export function useSession(opts: { mode: 'voz' | 'plan'; project?: string | null
 
   const energy: Energy = playing ? 'speaking' : serverState === 'thinking' ? 'thinking' : micOn ? 'listening' : 'idle'
 
-  return { connected, messages, energy, micOn, micError, enableMic, disableMic, sendText, interrupt, project, artifacts, voiceDone, playing, error }
+  // En modo por turnos, el VAD sigue detectando voz pero solo se envía al pulsar TERMINAR.
+  const capturing = turnMode === 'manual' && micOn && (buffered || speechActive)
+
+  return {
+    connected, messages, energy, micOn, micError, enableMic, disableMic, sendText, interrupt, project, artifacts, voiceDone, playing, error,
+    turnMode, setTurnMode, finishTurn, capturing,
+  }
 }
 
 /** Convierte conversacion.md («**Tú** (12:00): …») en mensajes. */

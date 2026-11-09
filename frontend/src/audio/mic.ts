@@ -6,6 +6,8 @@ export interface MicCallbacks {
   onSpeechStart: () => void
   /** Frase completa, Float32 PCM a 16 kHz. */
   onUtterance: (audio: Float32Array) => void
+  /** El VAD entra o sale de un tramo de voz (incluye falsos positivos). */
+  onSpeechActive?: (active: boolean) => void
 }
 
 /** Micrófono manos libres con Silero VAD ejecutándose en el navegador. */
@@ -16,6 +18,8 @@ export class Mic {
   private raf = 0
   /** Mientras PROMETEO habla exigimos más confianza para evitar que se interrumpa con su propia voz. */
   private strict = false
+  /** El VAD está dentro de un tramo de voz (aún no ha entregado la frase). */
+  inSpeech = false
 
   private cb: MicCallbacks = { onSpeechStart: () => {}, onUtterance: () => {} }
   private starting: Promise<void> | null = null
@@ -47,8 +51,10 @@ export class Mic {
         this.meter(this.stream)
         return this.stream
       },
+      onSpeechStart: () => { this.inSpeech = true; this.cb.onSpeechActive?.(true) },
       onSpeechRealStart: () => this.cb.onSpeechStart(),
-      onSpeechEnd: (audio) => this.cb.onUtterance(audio),
+      onSpeechEnd: (audio) => { this.inSpeech = false; this.cb.onUtterance(audio); this.cb.onSpeechActive?.(false) },
+      onVADMisfire: () => { this.inSpeech = false; this.cb.onSpeechActive?.(false) },
     })
   }
 
@@ -61,6 +67,7 @@ export class Mic {
 
   async pause() {
     await this.vad?.pause()
+    this.inSpeech = false
     levels.mic = 0
   }
 

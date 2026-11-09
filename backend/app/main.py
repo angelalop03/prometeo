@@ -12,7 +12,7 @@ from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
-from . import projects
+from . import local, projects
 from .brain import HANDOFF_TOOL, Brain, run_architect, suggest_title
 from .config import CHOICES, FRONTEND_DIST, PROJECTS_DIR, agent_meta, load_settings, load_voice, save_settings, save_voice
 from .speech import SAMPLE_TEXT, STT, TTS, VOICES, SentenceSplitter, capabilities
@@ -113,6 +113,12 @@ async def put_settings(data: dict = Body(...)):
     return {"settings": after, "runtime": _runtime()}
 
 
+@app.get("/api/local-models")
+def local_models():
+    """Modelos de LM Studio (los guarda en ~/.lmstudio/models). reachable=false si no está en marcha."""
+    return {**local.list_models(), "url": load_settings()["lmstudio_url"]}
+
+
 @app.put("/api/voice")
 def put_voice(data: dict = Body(...)):
     """Elección manual de voz (catálogo / ajustes). configured=false vuelve a la primera configuración."""
@@ -180,7 +186,8 @@ _NOISE = {"", "gracias", "gracias.", "subtítulos realizados por la comunidad de
 
 def _meaningful(text: str) -> bool:
     t = text.strip().lower()
-    return len(t) > 1 and t not in _NOISE and "amara.org" not in t
+    # Con initial_prompt, sobre ruido Whisper a veces repite el propio prompt
+    return len(t) > 1 and t not in _NOISE and "amara.org" not in t and "prometeo sobre planificar" not in t
 
 
 class Session:

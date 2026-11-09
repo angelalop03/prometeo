@@ -2,7 +2,14 @@ import { unlockAudio } from './session'
 
 export interface VoiceInfo { name: string; desc: string; gender: 'm' | 'f'; accent: string | null }
 export interface VoiceCfg { voice: string; speed: number; configured: boolean }
-export interface Settings { tts_device: 'cpu' | 'cuda'; stt_device: 'cpu' | 'cuda'; whisper_model: string; claude_model: string; effort: string; architect_model: string; architect_effort: string }
+export interface Settings {
+  tts_device: 'cpu' | 'cuda'; stt_device: 'cpu' | 'cuda'; whisper_model: string
+  /** «haiku|sonnet|opus» o «local:<id de LM Studio>» */
+  claude_model: string; effort: string; architect_model: string; architect_effort: string; title_model: string
+  local_context: string; lmstudio_url: string
+}
+export interface LocalModel { id: string; name: string; params: string | null; size: number | null; loaded: boolean; tools: boolean; max_context: number | null }
+export interface LocalModels { reachable: boolean; models: LocalModel[]; url: string; error?: string }
 export interface Runtime {
   tts: { device: string; error: string | null } | null
   stt: { device: string; model: string; error: string | null } | null
@@ -12,7 +19,7 @@ export interface AppState {
   voice: VoiceCfg
   voices: Record<string, VoiceInfo>
   settings: Settings
-  choices: Record<keyof Settings, string[]>
+  choices: Record<string, string[]>
   capabilities: { tts_cuda: boolean; stt_cuda: boolean }
   runtime: Runtime
 }
@@ -28,6 +35,7 @@ const put = (url: string, body: object) =>
 export const api = {
   state: () => json<AppState>(fetch('/api/state')),
   saveSettings: (s: Partial<Settings>) => json<{ settings: Settings; runtime: Runtime }>(put('/api/settings', s)),
+  localModels: () => json<LocalModels>(fetch('/api/local-models')),
   saveVoice: (v: Partial<VoiceCfg>) => json<VoiceCfg>(put('/api/voice', v)),
   deleteProject: (slug: string) => json<{ ok: boolean }>(fetch(`/api/projects/${encodeURIComponent(slug)}`, { method: 'DELETE' })),
 }

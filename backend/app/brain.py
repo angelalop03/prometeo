@@ -1,4 +1,5 @@
-"""Cerebro de PROMETEO: Claude Agent SDK usando la suscripción de Claude Code (sin API key)."""
+"""Cerebro de PROMETEO: Claude Agent SDK usando la suscripción de Claude Code (sin API key)
+o un modelo local de LM Studio (ver local.py)."""
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +21,7 @@ from claude_agent_sdk import (
     tool,
 )
 
-from . import projects
+from . import local, projects
 from .config import AGENT_DIR, agent_prompt, architect_prompt, load_settings, mcp_catalog, mode_prompt, save_voice
 from .speech import VOICES
 
@@ -55,6 +56,13 @@ def _path_guard(root: Path):
     return guard
 
 
+def _resumable(meta: dict, id_key: str, backend_key: str, backend: str) -> str | None:
+    """Solo se reanuda una sesión con el mismo proveedor que la creó (las antiguas, sin
+    marca, son de Claude): el historial de un modelo local no es válido para Claude y viceversa."""
+    sid = meta.get(id_key)
+    return sid if sid and meta.get(backend_key, "claude") == backend else None
+
+
 def _tool_event(b: ToolUseBlock) -> dict:
     return {"type": "tool", "name": b.name,
             "file": Path(b.input.get("file_path", "")).name or None,
@@ -76,12 +84,13 @@ class Brain:
         self.client: ClaudeSDKClient | None = None
         self._dirty = False
         self.notes: list[str] = []  # avisos del Arquitecto para el próximo mensaje
+        self._model: dict = {}  # model (+ env si es local), resuelto en start()
+        self._backend = "claude"
 
     def _options(self) -> ClaudeAgentOptions:
         # Sonnet + effort bajo: ~1 s hasta la primera palabra (Opus tarda 4-30 s, demasiado para voz).
         st = load_settings()
-        common = dict(setting_sources=[], include_partial_messages=True,
-                      model=st["claude_model"], effort=st["effort"])
+        common = dict(setting_sources=[], include_partial_messages=True, effort=st["effort"], **self._model)
 
         if self.mode == "voz":
             catalog = "; ".join(f"{k} = {v['desc'].lower()}" + (f", acento {v['accent']}" if v["accent"] else ", nativa")
@@ -115,9 +124,12 @@ class Brain:
         meta = projects.get_meta(self.slug)
 
         guard = _path_guard(pdir)
+        resume = _resumable(meta, "session_id", "session_backend", self._backend)
         ctx = (f"\n\n# Contexto de la sesión\n- Fecha: {date.today():%d/%m/%Y}\n"
                f"- Proyecto: «{meta['title']}». Carpeta de trabajo: {pdir}\n"
                f"- Solo puedes leer archivos dentro de esa carpeta.")
+        if meta.get("session_id") and not resume:
+            ctx += "\n- Se ha cambiado de modelo y no tienes la conversación anterior: léela en conversacion.md antes de responder."
 
         @tool("encargar_entregables",
               "Encarga al Arquitecto (modelo profundo, en segundo plano) que escriba los entregables. "
@@ -142,12 +154,15 @@ class Brain:
             system_prompt=agent_prompt() + "\n\n" + mcp_catalog() + ctx,
             mcp_servers={"prometeo": server},
             tools=READ_TOOLS, allowed_tools=READ_TOOLS + [HANDOFF_TOOL],
-            cwd=str(pdir), resume=meta.get("session_id"),
+            cwd=str(pdir), resume=resume,
             hooks={"PreToolUse": [HookMatcher(matcher="Read|Glob", hooks=[guard])]},
             max_turns=10, **common,
         )
 
     async def start(self) -> None:
+        model = load_settings()["claude_model"]
+        self._model = await local.prepare(model)
+        self._backend = local.backend_key(model)
         self.client = ClaudeSDKClient(options=self._options())
         await self.client.connect()
 
@@ -182,7 +197,7 @@ class Brain:
                         yield _tool_event(b)
             elif isinstance(msg, ResultMessage):
                 if self.mode == "plan" and msg.session_id:
-                    projects.update_meta(self.slug, session_id=msg.session_id)
+                    projects.update_meta(self.slug, session_id=msg.session_id, session_backend=self._backend)
                 yield {"type": "done", "error": msg.is_error, "session_id": msg.session_id}
 
     async def interrupt(self) -> None:
@@ -207,6 +222,8 @@ async def run_architect(slug: str, entregables: list[str], brief: str,
     """El Arquitecto: modelo profundo que analiza lo recabado y escribe los entregables.
     Corre en segundo plano, fuera del turno de voz. Devuelve su frase final de resumen."""
     st = load_settings()
+    model = await local.prepare(st["architect_model"])
+    backend = local.backend_key(st["architect_model"])
     pdir = projects.project_dir(slug)
     meta = projects.get_meta(slug)
     (pdir / "brief.md").write_text(f"# Brief — {date.today():%d/%m/%Y}\n\nEntregables: {', '.join(entregables)}\n\n{brief.strip()}\n",
@@ -216,10 +233,10 @@ async def run_architect(slug: str, entregables: list[str], brief: str,
            f"- Solo puedes leer y escribir archivos dentro de esa carpeta.")
     opts = ClaudeAgentOptions(
         system_prompt=architect_prompt() + ctx,
-        setting_sources=[], model=st["architect_model"], effort=st["architect_effort"],
+        setting_sources=[], effort=st["architect_effort"], **model,
         tools=FILE_TOOLS + ["Skill"], allowed_tools=FILE_TOOLS,
         plugins=[{"type": "local", "path": str(AGENT_DIR)}], skills=PROMETEO_SKILLS,
-        permission_mode="acceptEdits", cwd=str(pdir), resume=meta.get("architect_session_id"),
+        permission_mode="acceptEdits", cwd=str(pdir), resume=_resumable(meta, "architect_session_id", "architect_backend", backend),
         hooks={"PreToolUse": [HookMatcher(matcher="Read|Write|Edit|Glob", hooks=[_path_guard(pdir)])]},
         max_turns=40,
     )
@@ -238,17 +255,21 @@ async def run_architect(slug: str, entregables: list[str], brief: str,
                         await on_event(_tool_event(b))
             elif isinstance(m, ResultMessage):
                 if m.session_id:
-                    projects.update_meta(slug, architect_session_id=m.session_id)
+                    projects.update_meta(slug, architect_session_id=m.session_id, architect_backend=backend)
                 if m.is_error:
                     raise RuntimeError(m.result or "error del Arquitecto")
     return final
 
 
 async def suggest_title(text: str) -> str | None:
-    """Título corto para un proyecto, con Haiku y en paralelo (no bloquea la voz)."""
+    """Título corto para un proyecto, en paralelo (no bloquea la voz). Haiku o un modelo local."""
+    try:
+        model = await local.prepare(load_settings()["title_model"])
+    except Exception:  # noqa: BLE001
+        return None
     opts = ClaudeAgentOptions(
         system_prompt="Devuelves solo un título de 2 a 6 palabras en español, sin comillas ni punto final.",
-        setting_sources=[], tools=[], max_turns=1, model="haiku",
+        setting_sources=[], tools=[], max_turns=1, **model,
     )
     out = ""
     try:

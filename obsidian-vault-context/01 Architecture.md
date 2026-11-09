@@ -23,6 +23,7 @@ Browser (React + Three.js)              Local backend (Python FastAPI)
 ```
 
 ## Two agents
+- Each slot (interviewer, Architect, title) can be a Claude model or a local LM Studio model (`local:<id>`), see [[10 Implementation decisions]].
 - The **interviewer** answers fast (~1–2 s to the first word) because it doesn't draft documents.
 - The **Architect** is an `asyncio` task owned by the session, not the turn: barge-in (`cancel_current`) doesn't stop it, and it keeps running even if the tab is closed (`_jobs` in `main.py`). Details → [[03 Agent (agent.md)]].
 

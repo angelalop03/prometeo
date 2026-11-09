@@ -329,6 +329,16 @@ input[type='range'] { accent-color: var(--cyan); width: 160px; }
 .status-line.warn { color: #ffcf7a; }
 .row-ctl { display: flex; align-items: center; gap: 10px; }
 .row-buttons { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 12px; }
+.model-pick { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.select, .field {
+  min-width: 0; max-width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 5px;
+  background: rgba(4, 10, 26, 0.7); color: var(--text); font: 300 13px var(--font-body); outline: none;
+}
+.select { width: 260px; }
+.select option { background: #06101f; color: var(--text); }
+.field { width: 220px; }
+.select:focus-visible, .field:focus-visible { border-color: var(--cyan); box-shadow: 0 0 10px rgba(79, 209, 255, 0.25); }
+@media (max-width: 560px) { .model-pick { align-items: stretch; } .select, .field { width: 100%; } }
 
 /* Bajo la conversación de definir voz */
 .subactions { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); display: flex; gap: 10px; }
@@ -361,4 +371,24 @@ input[type='range'] { accent-color: var(--cyan); width: 160px; }
   .inputbar { bottom: 16px; }
   .actions { top: calc(50% + 150px); }
   .btn, .cosmic { width: min(300px, calc(100vw - 32px)); }
+}
+
+/* ---- Switch de idioma (cabecera) ---- */
+.langswitch button { padding: 5px 8px; font-size: 10px; letter-spacing: 0.16em; }
+
+/* ---- Turnos (hablar y pulsar TERMINAR) ---- */
+.inputbar .turnmode { flex-shrink: 0; }
+.inputbar .turnmode.on { color: var(--cyan); border-color: var(--cyan); background: rgba(79, 209, 255, 0.14); }
+.inputbar .finish { flex-shrink: 0; }
+.inputbar .finish.live { box-shadow: 0 0 14px rgba(79, 209, 255, 0.55); animation: turn-pulse 1.4s ease-in-out infinite; }
+.turnhint {
+  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); pointer-events: none;
+  font: 500 10px var(--font-hud); letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim);
+}
+.turnhint.live { color: var(--cyan); text-shadow: 0 0 10px rgba(79, 209, 255, 0.7); }
+@keyframes turn-pulse { 50% { box-shadow: 0 0 22px rgba(79, 209, 255, 0.9); } }
+@media (prefers-reduced-motion: reduce) { .inputbar .finish.live { animation: none; } }
+@media (max-width: 760px) {
+  .turnhint { bottom: 76px; white-space: nowrap; }
+  .inputbar .turnmode, .inputbar .finish { padding-left: 8px; padding-right: 8px; }
 }

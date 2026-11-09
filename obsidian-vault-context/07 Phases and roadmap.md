@@ -12,6 +12,7 @@ updated: 2026-11-09
 - [x] **F4.5 – PROMETEO rebrand + UI**: new name, cosmic buttons, comet cursor, cursor interaction and ES/EN interface switch ✅ → [[06 UI Midnight Galaxy]]
 - [x] **F4.6 – Settings and navigation**: navigation bar with routes, **Voces** view (listen and choose), **Ajustes** view (voice, CPU/GPU, Whisper, Claude model and effort, language), deleting projects, per-machine settings in `settings.local.json` ✅ → [[10 Implementation decisions]]
 - [x] **F4.7 – Two agents**: fast interviewer (Sonnet) + deep Architect (Opus) in the background, MCP connection suggestions, Architect model and effort settings ✅ → [[03 Agent (agent.md)]]
+- [x] **F4.8 – Local models and turn mode**: LM Studio models for any slot, manual turn mode (TERMINAR), more accurate Whisper ✅ → [[10 Implementation decisions]]
 - [ ] **F5 – Customisable voice**: Chatterbox (cloning). Already done: choosing the voice from the UI and a "test voice" button
 
 ## Measured latencies (Intel CPU, no GPU)
@@ -32,7 +33,9 @@ updated: 2026-11-09
 - [ ] English voice (the EN switch only translates the interface)
 - [ ] Update Figma: PROMETEO name, cosmic buttons, language switch
 - [ ] Design views 04 · Conversación and 05 · Proyectos in Figma (already implemented in code)
-- [ ] Push-to-talk mode (space bar) as an alternative to hands-free
+- [x] Manual turn mode (TERMINAR button) as an alternative to hands-free
+- [ ] Space bar as a shortcut for TERMINAR
+- [ ] Measure local models (Qwen3.5 9B, Gemma 4 E4B) as interviewer: latency and tool use
 - [ ] `exportar-a-obsidian` skill: copy the deliverables into this vault
 - [ ] Final logo → [[09 Logo prompts]]
 - [x] Kokoro on GPU via `onnxruntime-gpu` (~0.14 s vs ~0.84 s per sentence)

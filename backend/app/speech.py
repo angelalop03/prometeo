@@ -79,6 +79,11 @@ def capabilities() -> dict:
     return {"tts_cuda": tts_cuda, "stt_cuda": stt_cuda}
 
 
+# Contexto para Whisper: fija el español, la puntuación y el vocabulario habitual
+PROMPT_ES = ("Conversación en español con Prometeo sobre planificar un proyecto: "
+             "plan, tareas, notas, prompt, MCP, Claude, frontend, backend.")
+
+
 class STT:
     def __init__(self, device: str = "cpu", size: str = "base") -> None:
         from faster_whisper import WhisperModel
@@ -104,7 +109,10 @@ class STT:
     def transcribe(self, pcm16k: np.ndarray) -> str:
         with self._lock:
             segments, _ = self.model.transcribe(
-                pcm16k, language="es", beam_size=1, vad_filter=False,
+                pcm16k, language="es", vad_filter=False,
+                # Beam search: bastante más preciso; en GPU apenas cuesta
+                beam_size=5 if self.device == "cuda" else 3,
+                initial_prompt=PROMPT_ES,
                 condition_on_previous_text=False,
             )
             return " ".join(s.text.strip() for s in segments).strip()

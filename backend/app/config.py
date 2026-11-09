@@ -66,14 +66,32 @@ _settings_lock = threading.Lock()
 CHOICES = {
     "tts_device": ("cpu", "cuda"),
     "stt_device": ("cpu", "cuda"),
-    "whisper_model": ("tiny", "base", "small", "medium"),
+    # Solo modelos multilingües: los .en y distil-* son de inglés
+    "whisper_model": ("tiny", "base", "small", "medium", "large-v3-turbo"),
     # Entrevistador (habla contigo): rápido
     "claude_model": ("haiku", "sonnet", "opus"),
     "effort": ("low", "medium", "high"),
     # Arquitecto (escribe los entregables en segundo plano): profundo
     "architect_model": ("sonnet", "opus"),
     "architect_effort": ("medium", "high", "xhigh", "max"),
+    # Título automático de cada proyecto
+    "title_model": ("haiku", "sonnet"),
+    # Contexto con el que se cargan los modelos locales en LM Studio
+    "local_context": ("8192", "16384", "32768", "65536"),
 }
+# Estos también aceptan «local:<id de LM Studio>» (ver app/local.py)
+MODEL_KEYS = ("claude_model", "architect_model", "title_model")
+DEFAULT_LMSTUDIO_URL = "http://localhost:1234"
+
+
+def _valid(key: str, value) -> bool:
+    if not isinstance(value, str):
+        return False
+    if key == "lmstudio_url":
+        return value.startswith(("http://", "https://")) and len(value) < 200
+    if key in MODEL_KEYS and value.startswith("local:"):
+        return len(value) > len("local:") and len(value) < 200
+    return key in CHOICES and value in CHOICES[key]
 
 
 def _defaults() -> dict:
@@ -85,6 +103,9 @@ def _defaults() -> dict:
         "effort": env("EFFORT", "low"),
         "architect_model": env("ARCHITECT_MODEL", "opus"),
         "architect_effort": env("ARCHITECT_EFFORT", "high"),
+        "title_model": env("TITLE_MODEL", "haiku"),
+        "local_context": env("LOCAL_CONTEXT", "32768"),
+        "lmstudio_url": env("LMSTUDIO_URL", DEFAULT_LMSTUDIO_URL),
     }
 
 
@@ -105,8 +126,8 @@ def load_settings() -> dict:
     """Ajustes de rendimiento y modelo (sin la voz)."""
     saved = _read_settings()
     out = _defaults()
-    for k, allowed in CHOICES.items():
-        if saved.get(k) in allowed:
+    for k in out:
+        if _valid(k, saved.get(k)):
             out[k] = saved[k]
     return out
 
@@ -115,7 +136,9 @@ def save_settings(**updates) -> dict:
     with _settings_lock:
         data = _read_settings()
         for k, v in updates.items():
-            if k in CHOICES and v in CHOICES[k]:
+            if k == "lmstudio_url" and isinstance(v, str):
+                v = v.strip().rstrip("/")
+            if _valid(k, v):
                 data[k] = v
         _write_settings(data)
     return load_settings()
