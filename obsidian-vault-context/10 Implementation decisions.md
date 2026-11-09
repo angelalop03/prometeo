@@ -92,6 +92,22 @@ Tested against a test backend on `:8799` over WebSocket (text): see latencies in
 > [!warning] VRAM
 > Every distinct local model takes its own GPU memory. With 8 GB (RTX 4060), use the **same** local model for all slots, and remember Whisper and Kokoro also live on the GPU.
 
+## FAQ view with pre-recorded answers (2026-11-09)
+Reason: the user wanted a window of frequently asked questions («¿Quién eres?» → «Soy Prometeo…») that Prometeo answers with pre-recorded audio.
+
+| Topic | Decision | Why |
+|---|---|---|
+| Where the questions live | `agent/faqs.md`: each `## question` followed by its answer; ids are slugs of the question (`¿Quién eres?` → `quien-eres`), duplicates get `-2` | Editable by hand like the other `agent/` files, no code changes to add a question |
+| Audio source | A hand recording in `agent/faqs-audio/<id>.wav\|mp3\|ogg\|m4a\|webm` wins; otherwise Kokoro generates it **once** and it is cached on disk in `backend/cache/faqs/` (git-ignored) | "Pre-recorded" without forcing the user to record anything; instant after the first play (~1.5 s first time, ~7 ms cached on the RTX 4060) |
+| Cache key | sha1 of answer text + voice + speed in the file name; older files for that id are deleted when regenerating | Changing the voice in Voces/Ajustes or editing the answer re-records automatically |
+| Safety | The id is looked up in the parsed list (404 otherwise), never used to build a path; written to a temp file and renamed, with a per-id lock | No path traversal; two concurrent first plays can't serve a half-written WAV |
+| Generation timing | Lazy, on first click; no pre-generation at startup | Pre-generating would compete for the TTS lock with the first sentence of a conversation |
+| Playback | `playAudio(url)` in `api.ts` (shared player, so the reactor pulses); `playSample` and `playFaq` are wrappers. The view opens no mic or WebSocket | Same feel as voice samples, no Claude involved |
+| Language | Questions and answers stay in Spanish also with the EN interface | Voice and TTS are Spanish only |
+| Content | 9 answers, 1–3 sentences each, «Prometeo» in normal case | "What's said is short" rule; upper case makes Kokoro spell it out |
+
+Commit: `8261a3a` FAQ view.
+
 ## Vault language (2026-11-09)
 This vault was switched from Spanish to English (notes, file names, frontmatter fields) at the user's request: it is context for Claude, and English is what Claude reads best. The app, its prompts and skills stay in Spanish.
 

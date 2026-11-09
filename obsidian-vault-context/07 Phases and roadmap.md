@@ -13,6 +13,7 @@ updated: 2026-11-09
 - [x] **F4.6 – Settings and navigation**: navigation bar with routes, **Voces** view (listen and choose), **Ajustes** view (voice, CPU/GPU, Whisper, Claude model and effort, language), deleting projects, per-machine settings in `settings.local.json` ✅ → [[10 Implementation decisions]]
 - [x] **F4.7 – Two agents**: fast interviewer (Sonnet) + deep Architect (Opus) in the background, MCP connection suggestions, Architect model and effort settings ✅ → [[03 Agent (agent.md)]]
 - [x] **F4.8 – Local models and turn mode**: LM Studio models for any slot, manual turn mode (TERMINAR), more accurate Whisper ✅ → [[10 Implementation decisions]]
+- [x] **F4.9 – FAQ view**: questions from `agent/faqs.md` answered with pre-recorded audio (hand recording or cached Kokoro) ✅ → [[10 Implementation decisions]]
 - [ ] **F5 – Customisable voice**: Chatterbox (cloning). Already done: choosing the voice from the UI and a "test voice" button
 
 ## Measured latencies (Intel CPU, no GPU)
@@ -45,5 +46,7 @@ updated: 2026-11-09
 - [ ] Test the two agents by voice (so far only by text) and tune the Architect's spoken notice
 - [ ] Consider switching the Architect's and skills' instructions to English (small token saving; templates and skill names stay Spanish) → [[10 Implementation decisions]]
 - [ ] Extend `agent/mcp-catalog.md` based on real projects
+- [ ] Check the FAQ view in the browser (not visually reviewed yet), especially the 5-item nav on mobile
+- [ ] Optionally record real answers in `agent/faqs-audio/` (e.g. with a cloned voice once F5 lands)
 
 Related: [[10 Implementation decisions]] · [[PROMETEO]]

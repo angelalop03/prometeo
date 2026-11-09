@@ -3,14 +3,14 @@ tags: [prometeo, moc]
 created: 2026-11-09
 updated: 2026-11-09
 status: v1-working
-last-documented-commit: 5bf890e
+last-documented-commit: 8261a3a
 ---
 # PROMETEO — Voice agent for planning projects
 
 > [!abstract] Summary
 > Local web app where you talk (or type) to **Prometeo**, a voice agent. Prometeo asks direct questions until a plan is settled, then produces deliverables: prompt, notes, `.md` plan and task list.
 > Under the hood there are **two agents**: a fast **interviewer** (Sonnet) that converses and suggests MCP connections, and a deep **Architect** (Opus) that writes the deliverables in the background → [[03 Agent (agent.md)]].
-> *Midnight galaxy* UI with an animated blue reactor-heart, cosmic buttons, comet cursor, navigation between views, a voice catalog with samples, and a Settings menu (voice, CPU/GPU, models, ES/EN interface language).
+> *Midnight galaxy* UI with an animated blue reactor-heart, cosmic buttons, comet cursor, navigation between views, a voice catalog with samples, a FAQ view where Prometeo answers common questions with pre-recorded audio, and a Settings menu (voice, CPU/GPU, models, ES/EN interface language).
 
 > [!info] Formerly called ORION
 > Renamed to PROMETEO on 2026-11-09. Repo and vault already renamed.
