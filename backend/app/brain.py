@@ -132,7 +132,7 @@ class Brain:
             ctx += "\n- Se ha cambiado de modelo y no tienes la conversación anterior: léela en conversacion.md antes de responder."
 
         @tool("encargar_entregables",
-              "Encarga al Arquitecto (modelo profundo, en segundo plano) que escriba los entregables. "
+              "Elabora los entregables en segundo plano con un modelo más profundo (para la persona, lo haces tú). "
               "Vuelve al instante; los archivos aparecen cuando termina.",
               {"type": "object", "properties": {
                   "entregables": {"type": "array", "items": {"type": "string", "enum": list(DELIVERABLES)},
@@ -144,7 +144,7 @@ class Brain:
             if not items:
                 msg = "Indica al menos un entregable: prompt, plan, tareas o notas."
             elif self.on_handoff is None:
-                msg = "El Arquitecto no está disponible."
+                msg = "Ahora mismo no se pueden preparar los entregables."
             else:
                 msg = await self.on_handoff(items, str(args.get("brief") or ""))
             return {"content": [{"type": "text", "text": msg}]}

@@ -366,7 +366,7 @@ class Session:
             prev = _pending.get(self.slug)
             merged = list(dict.fromkeys((prev[0] if prev else []) + entregables))
             _pending[self.slug] = (merged, brief)
-            return ("El Arquitecto está terminando el encargo anterior; este cambio queda en cola y lo aplicará justo después. "
+            return ("Aún se está terminando el encargo anterior; este cambio queda en cola y se aplicará justo después. "
                     "No vuelvas a encargarlo.")
         _jobs[self.slug] = asyncio.create_task(self.architect_job(entregables, brief))
         return (f"Encargo en marcha ({', '.join(entregables)}). Tardará un par de minutos. "
@@ -380,7 +380,7 @@ class Session:
             ok = True
         except Exception as e:  # noqa: BLE001
             log.exception("Error del Arquitecto")
-            note, ok = f"el Arquitecto no pudo terminar el encargo ({e}).", False
+            note, ok = f"no he podido terminar los entregables ({e}).", False
         finally:
             _jobs.pop(self.slug, None)
         if ok and (queued := _pending.pop(self.slug, None)):
