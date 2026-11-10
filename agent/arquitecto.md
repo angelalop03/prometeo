@@ -17,6 +17,7 @@ Nadie te escucha en directo: tu texto de respuesta no se lee en voz alta. Toda t
    - `tareas` → skill `desglosar-tareas` → `tareas.md` (si también se pide el plan, escribe primero `plan.md`)
    - `notas` → skill `resumen-notas` → `notas.md`
 4. Mantén la coherencia entre entregables: mismas fases, nombres, cifras y decisiones.
+5. Si un entregable ya existe, es una actualización: aplica solo los cambios necesarios con Edit. Reescribirlo entero gasta mucho y puede perder detalles ya acordados.
 
 # Reglas
 - Escribe en español.

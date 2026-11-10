@@ -223,7 +223,6 @@ async def run_architect(slug: str, entregables: list[str], brief: str,
     Corre en segundo plano, fuera del turno de voz. Devuelve su frase final de resumen."""
     st = load_settings()
     model = await local.prepare(st["architect_model"])
-    backend = local.backend_key(st["architect_model"])
     pdir = projects.project_dir(slug)
     meta = projects.get_meta(slug)
     (pdir / "brief.md").write_text(f"# Brief — {date.today():%d/%m/%Y}\n\nEntregables: {', '.join(entregables)}\n\n{brief.strip()}\n",
@@ -236,12 +235,20 @@ async def run_architect(slug: str, entregables: list[str], brief: str,
         setting_sources=[], effort=st["architect_effort"], **model,
         tools=FILE_TOOLS + ["Skill"], allowed_tools=FILE_TOOLS,
         plugins=[{"type": "local", "path": str(AGENT_DIR)}], skills=PROMETEO_SKILLS,
-        permission_mode="acceptEdits", cwd=str(pdir), resume=_resumable(meta, "architect_session_id", "architect_backend", backend),
+        # Sin resume: cada encargo es una sesión nueva. Reanudar arrastraba todas las versiones
+        # anteriores de los entregables (160k-330k tokens por llamada en Opus) y la caché se
+        # rompía en cada encargo. Lo que importa ya está en disco: brief, conversación y entregables.
+        permission_mode="acceptEdits", cwd=str(pdir),
         hooks={"PreToolUse": [HookMatcher(matcher="Read|Write|Edit|Glob", hooks=[_path_guard(pdir)])]},
         max_turns=40,
     )
+    existing = [f"{e}.md" for e in entregables if (pdir / f"{e}.md").exists()]
     task = (f"Entregables pedidos: {', '.join(entregables)}.\n"
-            f"El brief está en brief.md y la conversación completa en conversacion.md.\n\n{brief.strip()}")
+            "La conversación completa está en conversacion.md. El brief (también guardado en brief.md) va abajo; no hace falta releerlo.\n")
+    if existing:
+        task += (f"Ya existen: {', '.join(existing)}. Es una actualización: léelos y cambia solo lo que el brief "
+                 "o la conversación modifiquen, con Edit; no los reescribas enteros.\n")
+    task += f"\n{brief.strip()}"
     final = ""
     async with ClaudeSDKClient(options=opts) as c:
         await c.query(task)
@@ -254,8 +261,6 @@ async def run_architect(slug: str, entregables: list[str], brief: str,
                     if isinstance(b, ToolUseBlock):
                         await on_event(_tool_event(b))
             elif isinstance(m, ResultMessage):
-                if m.session_id:
-                    projects.update_meta(slug, architect_session_id=m.session_id, architect_backend=backend)
                 if m.is_error:
                     raise RuntimeError(m.result or "error del Arquitecto")
     return final

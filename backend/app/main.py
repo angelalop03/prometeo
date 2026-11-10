@@ -31,6 +31,7 @@ _stt_lock, _tts_lock = threading.Lock(), threading.Lock()
 _loading: set[str] = set()
 # Trabajos del Arquitecto: siguen aunque se cierre la pestaña, para que los archivos se escriban.
 _jobs: dict[str, asyncio.Task] = {}
+_pending: dict[str, tuple[list[str], str]] = {}  # encargo en cola por proyecto (entregables, brief)
 
 
 def stt() -> STT:
@@ -361,7 +362,12 @@ class Session:
         """Lo llama el entrevistador. Vuelve al instante; el Arquitecto trabaja aparte."""
         job = _jobs.get(self.slug)
         if job and not job.done():
-            return "El Arquitecto ya está trabajando en un encargo de este proyecto; avisará al terminar."
+            # Encargos seguidos se juntan en uno solo, con el brief más reciente, que corre al terminar el actual.
+            prev = _pending.get(self.slug)
+            merged = list(dict.fromkeys((prev[0] if prev else []) + entregables))
+            _pending[self.slug] = (merged, brief)
+            return ("El Arquitecto está terminando el encargo anterior; este cambio queda en cola y lo aplicará justo después. "
+                    "No vuelvas a encargarlo.")
         _jobs[self.slug] = asyncio.create_task(self.architect_job(entregables, brief))
         return (f"Encargo en marcha ({', '.join(entregables)}). Tardará un par de minutos. "
                 "Si aún no lo has dicho, avisa en una frase de que lo estás preparando; no lo repitas. Sigue conversando.")
@@ -377,6 +383,12 @@ class Session:
             note, ok = f"el Arquitecto no pudo terminar el encargo ({e}).", False
         finally:
             _jobs.pop(self.slug, None)
+        if ok and (queued := _pending.pop(self.slug, None)):
+            # Hay un encargo en cola: se encadena sin anunciar nada todavía.
+            await self.send({"type": "artifacts", "artifacts": projects.artifacts(self.slug)})
+            _jobs[self.slug] = asyncio.create_task(self.architect_job(*queued))
+            return
+        _pending.pop(self.slug, None)
         await self.send({"type": "architect", "state": "done" if ok else "error", "summary": note})
         await self.send({"type": "artifacts", "artifacts": projects.artifacts(self.slug)})
         if self.closed:
