@@ -4,9 +4,19 @@ Agente de voz local para planificar proyectos. Hablas (o escribes) con PROMETEO 
 
 ## Arrancar
 ```bash
-claude login      # solo la primera vez: PROMETEO usa tu suscripción de Claude
-./run.sh          # backend :8765 + frontend :5173
+claude login        # solo la primera vez: PROMETEO usa tu suscripción de Claude
+./bin/prometeo install   # solo la primera vez: deja el comando `prometeo` en ~/.local/bin
+prometeo            # backend :8765 + frontend :5173 (igual que ./run.sh)
 ```
+
+| Comando | Qué hace |
+|---|---|
+| `prometeo` / `prometeo run [--open]` | Arranca backend y frontend (`--open` abre el navegador) |
+| `prometeo update [--backend\|--frontend]` | Actualiza las dependencias: `uv lock --upgrade` + `uv sync` y `npm update`. Repone `onnxruntime-gpu` y las librerías CUDA si las tenías |
+| `prometeo models [--force]` | Descarga los modelos de voz Kokoro |
+| `prometeo build` | Compila el frontend (`frontend/dist`) |
+| `prometeo doctor` | Comprueba herramientas, modelos, dependencias, sesión de Claude y puertos |
+| `prometeo --help` / `--version` | Ayuda y versión |
 Abre **http://localhost:5173**. Usa auriculares para que PROMETEO no se escuche a sí mismo.
 
 ## Estructura
