@@ -53,7 +53,7 @@ A new project opens with a fixed greeting (`GREETINGS["nuevo"]` in `backend/app/
 - Don't ask what was already said or what can be assumed with a sensible default.
 
 ## MCP connections
-The interviewer suggests MCP servers useful for the project (GitHub, Figma, Postgres, Linear…), **only from the catalog** `agent/mcp-catalog.md` so it never invents names, in one sentence and at most one per turn. Suggestions go into the brief, and the Architect includes them in `plan.md` (section «Conexiones MCP recomendadas») and in `prompt.md`.
+The interviewer suggests MCP servers useful for the project (GitHub, Figma, Postgres, Linear…), **only from the catalog** `agent/mcp-catalog.md` so it never invents names, in one sentence and at most one per turn. The catalog is plain text (~4 KB, ~60 entries grouped by category): a selection of the claude.ai connector directory (1,000+ connectors, checked 2026-11-10) plus a few local MCP servers marked `(local)`. They are recommendations for **whoever executes the plan**; Prometeo plans and never loads or uses them (see [[10 Implementation decisions#Architect token usage (2026-11-10)]]). Suggestions go into the brief, and the Architect includes them in `plan.md` (section «Conexiones MCP recomendadas») and in `prompt.md`.
 
 ## Handoff to the Architect
 - Own MCP tool `mcp__prometeo__encargar_entregables` with `entregables` (`prompt` · `plan` · `tareas` · `notas`) and `brief` (dense summary of what was gathered). Returns **immediately**.
