@@ -51,7 +51,8 @@ prometeo/
 │           ├── CometCursor.tsx   # comet cursor (canvas)
 │           └── cosmic.ts         # cursor ↔ buttons interaction + cursorBus
 ├── settings.local.json         # this machine's settings (not versioned)
-├── run.sh                      # backend :8765 + frontend :5173 (Vite accepts PROMETEO_BACKEND to point at another backend)
+├── bin/prometeo                # CLI: run (default) · update · models · build · doctor · install (symlink in ~/.local/bin)
+├── run.sh                      # compatibility shim → bin/prometeo run (backend :8765 + frontend :5173; Vite accepts PROMETEO_BACKEND)
 └── README.md
 ```
 
