@@ -89,11 +89,17 @@ def _ensure_loaded_sync(mid: str, context: int) -> None:
     _request("/api/v1/models/load", {"model": mid, "context_length": context}, timeout=300)
 
 
+# Sin esto, Claude Code mete en cada sesión los conectores de la cuenta de claude.ai (Figma,
+# OpenArt, Drive, Docs...): ~86 herramientas y sus instrucciones, unos 60k tokens por sesión
+# que Prometeo no usa. Y como llegan tras la primera llamada, cambian el prompt y rompen la caché.
+NO_CLAUDEAI_MCP = {"ENABLE_CLAUDEAI_MCP_SERVERS": "false"}
+
+
 async def prepare(model: str) -> dict:
     """Opciones de ClaudeAgentOptions para un modelo (Claude o local). Si es local, se
     asegura de que LM Studio lo tenga cargado con el contexto configurado."""
     if not is_local(model):
-        return {"model": model}
+        return {"model": model, "env": dict(NO_CLAUDEAI_MCP)}
     mid = model_id(model)
     st = load_settings()
     async with _load_lock:
@@ -106,5 +112,6 @@ async def prepare(model: str) -> dict:
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": mid, "ANTHROPIC_SMALL_FAST_MODEL": mid,
         "ANTHROPIC_DEFAULT_SONNET_MODEL": mid, "ANTHROPIC_DEFAULT_OPUS_MODEL": mid,
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+        **NO_CLAUDEAI_MCP,
     }
     return {"model": mid, "env": env}
