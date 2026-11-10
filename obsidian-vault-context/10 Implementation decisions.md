@@ -1,7 +1,7 @@
 ---
 tags: [prometeo, decisions]
 date: 2026-11-09
-updated: 2026-11-09
+updated: 2026-11-10
 ---
 # Implementation decisions
 
@@ -107,6 +107,17 @@ Reason: the user wanted a window of frequently asked questions («¿Quién eres?
 | Content | 9 answers, 1–3 sentences each, «Prometeo» in normal case | "What's said is short" rule; upper case makes Kokoro spell it out |
 
 Commit: `8261a3a` FAQ view.
+
+## Startup animation (2026-11-10)
+| Topic | Decision | Why |
+|---|---|---|
+| Sound source | Synthesized with Web Audio (drone, riser, impact, heartbeat thumps, fifths chord, pings) | No asset files or licensing; timing is exact and in sync with the visuals |
+| Autoplay | Check `ctx.state` after 150 ms; dim gate text if blocked; silent intro if the gesture doesn't unlock audio | `resume()` without a gesture hangs instead of rejecting; the visuals must never depend on audio |
+| When it plays | Every full load, only on the home/start views | sessionStorage "once per tab" would look broken when reloading to see it; deep links start the mic |
+| Reveal technique | Darkness plane parented to the reactor with a growing hole, instead of fading each material | Follows the reactor's offset/scale per view and gives a "light from the centre" front for free |
+| Heartbeat | Beat phase measured from the ignition | Visual double beat and sound thumps coincide |
+
+Details in [[06 UI Midnight Galaxy]]. Commit: `b44fc4d` startup animation.
 
 ## Vault language (2026-11-09)
 This vault was switched from Spanish to English (notes, file names, frontmatter fields) at the user's request: it is context for Claude, and English is what Claude reads best. The app, its prompts and skills stay in Spanish.

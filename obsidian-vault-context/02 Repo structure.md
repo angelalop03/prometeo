@@ -1,6 +1,6 @@
 ---
 tags: [prometeo, repo]
-updated: 2026-11-09
+updated: 2026-11-10
 ---
 # Repository structure
 
@@ -39,13 +39,15 @@ prometeo/
 │   └── src/
 │       ├── App.tsx             # #/… routes, Nav and views: Comenzar · DefinirVoz · Inicio · Proyectos · Voces · Ajustes · Faqs · Conversación
 │       ├── api.ts              # typed REST calls + playAudio → playSample / playFaq, stopSample (one-off audio through the shared player)
-│       ├── session.ts          # WebSocket, messages, reactor energy, microphone
+│       ├── session.ts          # WebSocket, messages, reactor energy, microphone; audioPlayer() / unlockAudio() (shared player)
+│       ├── intro.ts            # startup animation clock: timeline T, introState() read by the scene every frame
 │       ├── i18n.ts             # ES/EN interface strings
 │       ├── index.css           # tokens and styles (cosmic buttons, cursor, navigation, pages, voices, settings)
-│       ├── scene/Scene.tsx     # reactor + galaxy (react-three-fiber)
-│       ├── audio/              # mic (VAD) · player · levels
+│       ├── scene/Scene.tsx     # reactor + galaxy (react-three-fiber) + intro darkness mask
+│       ├── audio/              # mic (VAD) · player · levels · introSound (synthesized intro sound)
 │       └── ui/
 │           ├── CosmicButton.tsx  # main cosmic button
+│           ├── Intro.tsx         # startup animation orchestration + «TOCA PARA DESPERTAR» gate
 │           ├── CometCursor.tsx   # comet cursor (canvas)
 │           └── cosmic.ts         # cursor ↔ buttons interaction + cursorBus
 ├── settings.local.json         # this machine's settings (not versioned)

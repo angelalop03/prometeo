@@ -1,6 +1,6 @@
 ---
 tags: [prometeo, roadmap]
-updated: 2026-11-09
+updated: 2026-11-10
 ---
 # Phases and roadmap
 
@@ -14,6 +14,7 @@ updated: 2026-11-09
 - [x] **F4.7 – Two agents**: fast interviewer (Sonnet) + deep Architect (Opus) in the background, MCP connection suggestions, Architect model and effort settings ✅ → [[03 Agent (agent.md)]]
 - [x] **F4.8 – Local models and turn mode**: LM Studio models for any slot, manual turn mode (TERMINAR), more accurate Whisper ✅ → [[10 Implementation decisions]]
 - [x] **F4.9 – FAQ view**: questions from `agent/faqs.md` answered with pre-recorded audio (hand recording or cached Kokoro) ✅ → [[10 Implementation decisions]]
+- [x] **F4.10 – Startup animation**: darkness → heart ignites from the centre → stars in a wave → UI, with synthesized epic sound ✅ → [[06 UI Midnight Galaxy]]
 - [ ] **F5 – Customisable voice**: Chatterbox (cloning). Already done: choosing the voice from the UI and a "test voice" button
 
 ## Measured latencies (Intel CPU, no GPU)
@@ -48,5 +49,6 @@ updated: 2026-11-09
 - [ ] Extend `agent/mcp-catalog.md` based on real projects
 - [ ] Check the FAQ view in the browser (not visually reviewed yet), especially the 5-item nav on mobile
 - [ ] Optionally record real answers in `agent/faqs-audio/` (e.g. with a cloned voice once F5 lands)
+- [ ] Listen to the startup sound and tune it (volume `master.gain`, timeline `T`): checked visually and measured offline, not yet heard
 
 Related: [[10 Implementation decisions]] · [[PROMETEO]]

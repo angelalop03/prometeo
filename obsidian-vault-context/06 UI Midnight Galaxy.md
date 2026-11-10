@@ -1,6 +1,6 @@
 ---
 tags: [prometeo, ui, design]
-updated: 2026-11-09
+updated: 2026-11-10
 ---
 # UI — Midnight Galaxy
 
@@ -40,6 +40,28 @@ Shared header: **PROMETEO** wordmark + navigation **Inicio · Proyectos · Voces
 - **Listening**: rings react to microphone volume.
 - **Thinking**: fast rotation and orbiting particles.
 - **Speaking**: the core pulses with TTS amplitude (AnalyserNode).
+
+## Startup animation — `intro.ts`, `ui/Intro.tsx`, `audio/introSound.ts`
+Plays on every full page load, only when landing on `inicio`, `comenzar` or no hash (on `#/voz` or `#/conversacion` the mic would start under it). ~7.6 s; timeline in `T` (`intro.ts`):
+
+| Time | Visual | Sound |
+|---|---|---|
+| 0 – 0.6 s | Everything dark (`#02030A`) | Sub-bass drone (E1, two detuned saws) starts swelling |
+| 0.6 – 3 s (`T.core`) | Heart lights up from the centre, flickering | Drone grows + filtered-noise riser sweeping up |
+| 3 s (`T.ignite`) | **Ignition**: core flash, cyan shockwave ring, rings and aura revealed | Impact: sine dropping 130 → 34 Hz + noise burst into a generated reverb |
+| from 3 s | Heart starts beating | Low double thumps in sync with the reactor beat |
+| 4 – 7 s (`T.stars`) | Stars light up in a wave radiating from the heart, each with a brief flare; nebula fades in | Open-fifths chord (E) blooming + random high E-pentatonic pings |
+| 6.4 s (`T.ui`) | UI (`.layer`) and comet cursor fade in | Fades out |
+
+- **Shared clock**: `intro.ts` holds the phase (`idle · running · done`) and `introState()` (core light, mask radius, rim, aura, flash, star wave…), read by `Scene.tsx` in `useFrame` like `levels`. Uses `performance.now()`, not the R3F clock.
+- **Darkness**: a large plane parented to the reactor group (`maskFrag`, `renderOrder 999`, no depth test) with a hole that opens from the heart, so it follows `offsetY` / `scale`. Its colour is in **linear** space (the postprocessing converts to sRGB). Bloom still leaks past the hole edge on purpose.
+- **Stars**: `starVert` projects each star onto the reactor plane and lights it when `uWave` reaches it (staggered by `aPhase`). The nebula is faded by multiplying its colour (its alpha is always 1).
+- **Beat sync**: the reactor beat phase is now `(now − intro.beatOrigin) % 1.2`, with the origin at the ignition, so the visual double beat and the sound thumps coincide. Before ignition the heart doesn't beat.
+- **Hidden UI**: `.layer` gets `inert` + `.intro-hidden` (opacity 0) and `html.intro-dark` hides the comet canvas until `T.ui`.
+- **Skip**: click or any key after the start → 0.6 s fade to the final state, sound ramps down in 0.3 s.
+- **Autoplay gate**: browsers usually leave the `AudioContext` suspended without a gesture, and `resume()` then stays pending instead of failing. After 150 ms the state is checked: if not `running`, a dim **TOCA PARA DESPERTAR A PROMETEO / TAP TO AWAKEN PROMETEO** (`intro.gate`) shows in the dark; `click` or a key starts it (`click`, not `pointerdown`, because a touch only grants activation on click). If the gesture doesn't unlock audio (e.g. Esc) the intro runs silent after 300 ms: sound is only scheduled on a running context, or it would play later over the UI.
+- **Sound**: 100 % Web Audio, no files. Goes straight to the destination (not through the voice analyser, so `levels.out` stays clean), through a compressor. Volume `master.gain` = 0.42 → rendered peak ≈ 0.71 (0.75 clipped at 1.23). Uses the shared `audioPlayer()` context, so the gate click also unlocks Prometeo's voice.
+- `prefers-reduced-motion`: no intro. StrictMode-safe (module-level `launched` flag).
 
 ## Cosmic buttons — `ui/CosmicButton.tsx`
 EMPEZAR, ABRIR PROYECTO and COMENZAR. CSS only (`index.css`, section «Botones cósmicos»):
