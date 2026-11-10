@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import Scene, { type Energy, type ReactorProps } from './scene/Scene'
 import CometCursor from './ui/CometCursor'
 import CosmicButton from './ui/CosmicButton'
+import Intro from './ui/Intro'
 import { installCosmicInteractions } from './ui/cosmic'
 import { locale, t, useLang, type Lang } from './i18n'
 import { unlockAudio, useSession, type Artifact, type Msg, type ProjectMeta } from './session'
@@ -49,6 +50,10 @@ export default function App() {
   const [view, setView] = useState<View>({ name: 'loading' })
   const [lang, setLang] = useLang()
   const [reactor, setReactor] = useState<ReactorProps>({ variant: 'despertar', energy: 'idle', offsetY: 60 })
+  // La interfaz (y el cursor cometa) aparecen al final de la animación de inicio.
+  const [revealed, setRevealed] = useState(false)
+  const reveal = useCallback(() => setRevealed(true), [])
+  useEffect(() => { document.documentElement.classList.toggle('intro-dark', !revealed) }, [revealed])
 
   const go = useCallback((v: View) => {
     setView(v)
@@ -84,7 +89,8 @@ export default function App() {
     <>
       <Scene {...reactor} />
       <CometCursor />
-      <div className="layer">
+      <Intro onReveal={reveal} />
+      <div className={revealed ? 'layer' : 'layer intro-hidden'} inert={!revealed}>
         <div className="topleft">
           <button className="wordmark" onClick={goHome} title={t('home')}>PROMETEO</button>
           {view.name !== 'loading' && <Nav current={view.name} go={go} />}

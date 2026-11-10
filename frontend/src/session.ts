@@ -15,10 +15,16 @@ function getMic() {
   return micPromise
 }
 /** Debe llamarse desde un gesto del usuario (clic) para desbloquear el audio. */
-export async function unlockAudio() {
+/** Reproductor compartido, creado al vuelo (su AudioContext puede nacer suspendido hasta un gesto). */
+export function audioPlayer() {
   player ??= new VoicePlayer()
-  await player.unlock()
   return player
+}
+
+export async function unlockAudio() {
+  const p = audioPlayer()
+  await p.unlock()
+  return p
 }
 
 const TOOL_LABELS: Record<string, () => string> = {

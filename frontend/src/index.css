@@ -27,6 +27,21 @@ body {
 .layer * { pointer-events: auto; }
 .layer .passthrough, .layer .passthrough * { pointer-events: none; }
 
+/* ---- Animación de inicio ---- */
+.layer { transition: opacity 1.4s ease; }
+.layer.intro-hidden { opacity: 0; }
+.comet { transition: opacity 1.4s ease; }
+html.intro-dark .comet { opacity: 0; }
+.intro-gate {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; cursor: pointer;
+  font-family: var(--font-hud); font-size: 13px; letter-spacing: 0.42em; color: var(--text);
+  animation: intro-gate-in 2.4s ease both;
+}
+.intro-gate span { padding-left: 0.42em; animation: intro-gate-breathe 3.6s ease-in-out 2.4s infinite; opacity: 0.7; }
+@keyframes intro-gate-in { from { opacity: 0; } }
+@keyframes intro-gate-breathe { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .layer, .comet { transition: none; } }
+
 /* ---- HUD chrome ---- */
 .topleft { position: fixed; top: 30px; left: 44px; display: flex; align-items: center; gap: 26px; }
 .wordmark {

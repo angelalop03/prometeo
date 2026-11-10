@@ -3,6 +3,7 @@ import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { levels } from '../audio/levels'
+import { intro, introState, now } from '../intro'
 
 export type ReactorVariant = 'despertar' | 'escuchando' | 'reposo'
 export type Energy = 'idle' | 'listening' | 'thinking' | 'speaking'
@@ -41,7 +42,7 @@ const auraFrag = /* glsl */ `
   }
 `
 const coreFrag = /* glsl */ `
-  uniform float uPulse;
+  uniform float uPulse, uLight;
   varying vec2 vUv;
   void main() {
     float r = length(vUv - 0.5) * 2.0;
@@ -49,9 +50,26 @@ const coreFrag = /* glsl */ `
     vec3 col = mix(white, cyan, smoothstep(0.0, 0.45, r));
     col = mix(col, blue, smoothstep(0.45, 1.0, r));
     float alpha = smoothstep(1.0, 0.82, r);
-    gl_FragColor = vec4(col * (1.0 + uPulse * 0.6), alpha);
+    gl_FragColor = vec4(col * (1.0 + uPulse * 0.6) * uLight, alpha);
   }
 `
+/* Oscuridad de la intro: tapa todo salvo un hueco alrededor del reactor que se abre desde el centro;
+   en la ignición su borde es una onda de choque cian. */
+// Color en lineal: el postprocesado lo pasa a sRGB (≈ #02030a).
+const maskFrag = /* glsl */ `
+  uniform float uR, uA, uRim, uSize;
+  varying vec2 vUv;
+  void main() {
+    float r = length(vUv - 0.5) * uSize;
+    float soft = 0.08 + uR * 0.35;
+    float dark = smoothstep(uR - soft, uR, r) * uA;
+    float rim = smoothstep(0.22, 0.0, abs(r - uR + soft * 0.4)) * uRim;
+    vec3 col = mix(vec3(0.0006, 0.0009, 0.003), vec3(0.45, 1.25, 1.6), clamp(rim, 0.0, 1.0));
+    gl_FragColor = vec4(col, max(dark, rim));
+  }
+`
+const MASK_SIZE = 80
+
 const vert = /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`
 
 function Segments({ inner, outer, count, gap, color, opacity = 1 }: { inner: number; outer: number; count: number; gap: number; color: THREE.Color; opacity?: number }) {
@@ -115,6 +133,7 @@ function Reactor({ variant, energy, offsetY = 0, scale = 1 }: ReactorProps) {
   const dots = useRef<THREE.Group>(null)
   const orbit = useRef<THREE.Points>(null)
   const core = useRef<THREE.Mesh>(null)
+  const mask = useRef<THREE.Mesh>(null)
   const { viewport, size } = useThree()
   const s = useRef({ spiky: 1, level: 0, speed: 1, orbit: 0, intensity: 0, y: 0, scale: 1 })
 
@@ -123,7 +142,11 @@ function Reactor({ variant, energy, offsetY = 0, scale = 1 }: ReactorProps) {
     uniforms: { uTime: { value: 0 }, uSpiky: { value: 1 }, uLevel: { value: 0 }, uIntensity: { value: 0 }, uBeat: { value: 0 } },
   }), [])
   const coreMat = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: vert, fragmentShader: coreFrag, transparent: true, toneMapped: false, uniforms: { uPulse: { value: 0 } },
+    vertexShader: vert, fragmentShader: coreFrag, transparent: true, toneMapped: false, uniforms: { uPulse: { value: 0 }, uLight: { value: 0 } },
+  }), [])
+  const maskMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: vert, fragmentShader: maskFrag, transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
+    uniforms: { uR: { value: 0 }, uA: { value: 1 }, uRim: { value: 0 }, uSize: { value: MASK_SIZE } },
   }), [])
 
   useFrame((state, dt) => {
@@ -145,20 +168,30 @@ function Reactor({ variant, energy, offsetY = 0, scale = 1 }: ReactorProps) {
     st.y += (offsetY * pxToWorld - st.y) * k
     st.scale += (scale - st.scale) * k
 
-    // Latido: doble pulso cada 1.2 s
-    const ph = t % 1.2
-    const beat = Math.exp(-ph * 9) + 0.6 * Math.exp(-Math.max(0, ph - 0.22) * 9) * (ph > 0.22 ? 1 : 0)
+    // Intro: luz del núcleo, hueco en la oscuridad, ignición
+    const io = introState()
+    intro.cy = st.y
+    // Latido: doble pulso cada 1.2 s, con origen en la ignición de la intro (a compás con su sonido)
+    const ph = (((now() - intro.beatOrigin) % 1.2) + 1.2) % 1.2
+    const beat = (Math.exp(-ph * 9) + 0.6 * Math.exp(-Math.max(0, ph - 0.22) * 9) * (ph > 0.22 ? 1 : 0)) * io.beat
 
     auraMat.uniforms.uTime.value = t
     auraMat.uniforms.uSpiky.value = st.spiky
     auraMat.uniforms.uLevel.value = Math.min(1, st.level * 1.6)
-    auraMat.uniforms.uIntensity.value = st.intensity
+    auraMat.uniforms.uIntensity.value = st.intensity * io.aura
     auraMat.uniforms.uBeat.value = beat
-    coreMat.uniforms.uPulse.value = beat * 0.5 + st.level * 1.4
+    coreMat.uniforms.uPulse.value = beat * 0.5 + st.level * 1.4 + io.flash * 2.2
+    coreMat.uniforms.uLight.value = 0.05 + 0.95 * io.core
+    if (mask.current) {
+      mask.current.visible = io.maskA > 0.001 || io.rim > 0.001
+      maskMat.uniforms.uR.value = io.maskR
+      maskMat.uniforms.uA.value = io.maskA
+      maskMat.uniforms.uRim.value = io.rim
+    }
 
     if (group.current) {
       group.current.position.y = st.y
-      group.current.scale.setScalar(st.scale * (1 + beat * 0.012 + st.level * 0.05))
+      group.current.scale.setScalar(st.scale * (1 + beat * 0.012 + st.level * 0.05 + io.flash * 0.05))
     }
     if (core.current) core.current.scale.setScalar(1 + beat * 0.05 + st.level * 0.18)
     if (seg.current) seg.current.rotation.z += dt * 0.25 * st.speed
@@ -190,6 +223,9 @@ function Reactor({ variant, energy, offsetY = 0, scale = 1 }: ReactorProps) {
         <meshBasicMaterial color={BLUE} transparent opacity={0.8} toneMapped={false} />
       </mesh>
       <Orbiters refObj={orbit} />
+      <mesh ref={mask} material={maskMat} position={[0, 0, 0.05]} renderOrder={999}>
+        <planeGeometry args={[MASK_SIZE, MASK_SIZE]} />
+      </mesh>
     </group>
   )
 }
@@ -198,7 +234,7 @@ function Reactor({ variant, energy, offsetY = 0, scale = 1 }: ReactorProps) {
 /*  Fondo: nebulosa + estrellas con parpadeo y parallax                */
 /* ------------------------------------------------------------------ */
 const nebulaFrag = /* glsl */ `
-  uniform float uTime; varying vec2 vUv;
+  uniform float uTime, uFade; varying vec2 vUv;
   float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float n(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
     return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
@@ -212,14 +248,19 @@ const nebulaFrag = /* glsl */ `
     col = mix(col, teal, smoothstep(0.5, 0.9, fbm(p * 0.8 - 5.0)) * 0.6);
     float center = 1.0 - smoothstep(0.0, 0.75, length(vUv - 0.5));
     float a = smoothstep(0.45, 1.0, f) * 0.16 * (0.25 + center);
-    gl_FragColor = vec4(col * a, 1.0);
+    gl_FragColor = vec4(col * a * uFade, 1.0);
   }
 `
 const starVert = /* glsl */ `
-  attribute float aSize; attribute float aPhase; uniform float uTime; varying float vTw;
+  attribute float aSize; attribute float aPhase; uniform float uTime, uWave, uCy; varying float vTw;
   void main(){
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vTw = 0.55 + 0.45 * sin(uTime * (0.6 + aPhase) + aPhase * 20.0);
+    // Intro: cada estrella se enciende cuando le llega la oleada que sale del corazón (proyectada al plano del reactor).
+    vec2 proj = mv.xy * (6.0 / -mv.z) - vec2(0.0, uCy);
+    float lit = clamp((uWave - length(proj)) / (0.5 + aPhase * 1.8), 0.0, 1.0);
+    // Al encenderse, un breve fogonazo por encima de su brillo normal
+    vTw *= lit * (1.0 + 1.6 * lit * (1.0 - lit) * 4.0);
     gl_PointSize = aSize * (300.0 / -mv.z);
     gl_Position = projectionMatrix * mv;
   }
@@ -236,9 +277,9 @@ const starFrag = /* glsl */ `
 function Galaxy() {
   const stars = useRef<THREE.Points>(null)
   const group = useRef<THREE.Group>(null)
-  const nebula = useMemo(() => new THREE.ShaderMaterial({ vertexShader: vert, fragmentShader: nebulaFrag, uniforms: { uTime: { value: 0 } }, depthWrite: false }), [])
+  const nebula = useMemo(() => new THREE.ShaderMaterial({ vertexShader: vert, fragmentShader: nebulaFrag, uniforms: { uTime: { value: 0 }, uFade: { value: 0 } }, depthWrite: false }), [])
   const starMat = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: starVert, fragmentShader: starFrag, uniforms: { uTime: { value: 0 } },
+    vertexShader: starVert, fragmentShader: starFrag, uniforms: { uTime: { value: 0 }, uWave: { value: 0 }, uCy: { value: 0 } },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   }), [])
   const geo = useMemo(() => {
@@ -258,6 +299,10 @@ function Galaxy() {
   useFrame((state, dt) => {
     nebula.uniforms.uTime.value = state.clock.elapsedTime
     starMat.uniforms.uTime.value = state.clock.elapsedTime
+    const io = introState()
+    starMat.uniforms.uWave.value = io.wave
+    starMat.uniforms.uCy.value = intro.cy
+    nebula.uniforms.uFade.value = Math.min(1, Math.max(0, (io.wave - 2) / 8))
     if (stars.current) stars.current.rotation.z += dt * 0.004
     if (group.current) {
       // Parallax suave con el ratón
