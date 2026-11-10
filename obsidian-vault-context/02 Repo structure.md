@@ -21,7 +21,7 @@ prometeo/
 │       ├── crear-prompt/ · documentar-plan/ · desglosar-tareas/ · resumen-notas/
 ├── projects/
 │   └── <date-slug>/
-│       ├── meta.json           # title, dates, session_id/architect_session_id + session_backend/architect_backend
+│       ├── meta.json           # title, dates, session_id + session_backend (older projects may still have architect_session_id, unused)
 │       ├── brief.md            # latest brief from interviewer to Architect (hidden in the panel)
 │       ├── conversacion.md     # «**Tú** (hh:mm): …» / «**PROMETEO** (hh:mm): …»
 │       └── plan.md · prompt.md · notas.md · tareas.md

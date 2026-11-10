@@ -58,13 +58,25 @@ Reason: with a single agent you had to choose between **speaking fast** (Sonnet)
 | Agents | One: Sonnet converses and writes deliverables | **Interviewer** (Sonnet `low`) converses; **Architect** (Opus `high`) writes deliverables | Fast voice and deeply thought-out deliverables |
 | How work is handed off | The agent invoked the skill inside its turn | MCP tool `encargar_entregables` returns immediately; the backend launches `run_architect` as a separate task | An SDK subagent (`agents=`) would block the voice turn for 1–2 min and barge-in would cancel it |
 | Architect context | — | `brief.md` (interviewer's summary) + full `conversacion.md`, which wins on conflicts | The brief is quick to read; the transcript keeps details from getting lost |
-| Sessions | `session_id` | `session_id` + `architect_session_id` in `meta.json` | `resume` doesn't mix the two histories |
+| Sessions | `session_id` | Interviewer resumes `session_id`; the Architect starts a **fresh session per job** (see [[#Architect token usage (2026-11-10)]]) | Resuming the Architect was the main source of subscription usage |
 | "Done" notice | — | `architect` + `artifacts` events; spoken notice via `say()` only if nobody is talking; otherwise a `[sistema: …]` note on the next message | `say()` bumps the turn and would cut the audio of a turn in progress |
 | MCP connections | — | The interviewer suggests servers from `agent/mcp-catalog.md`; the Architect includes them in `plan.md` and `prompt.md` | Useful recommendations without the fast model inventing names |
 | Settings | `claude_model`, `effort` | Plus `architect_model` (`sonnet` · `opus`) and `architect_effort` (`medium`…`max`); env vars `PROMETEO_ARCHITECT_MODEL`, `PROMETEO_ARCHITECT_EFFORT` | The old keys still mean the interviewer: saved settings don't break |
 | Prompt and skill language | Spanish | **Kept in Spanish** | English saves ~15–30 % tokens, but the prompts are short and cached, the subscription is used (limits, not money), and translating risks English answers that Kokoro would read; the frontend uses the skill names |
 
 Tested against a test backend on `:8799` over WebSocket (text): see latencies in [[07 Phases and roadmap]]. Interrupting during a handoff doesn't stop the Architect.
+
+## Architect token usage (2026-11-10)
+Measured: one project with 4 small re-handoffs (e-mail domain, filter word…) used ~1.17M Opus cache-write tokens in ~20 active minutes, ~45 % of a session's limit. Each re-handoff resumed the Architect session, so its context grew with every previous full rewrite (160k → 244k → 327k input tokens per call), the cache missed on every job, and Opus rewrote the whole `prompt.md` (~9k output tokens) each time.
+
+| Topic | Before | Now | Why |
+|---|---|---|---|
+| Architect session | `resume=architect_session_id` | **Fresh session per job**; `architect_session_id` is no longer written | Everything it needs is on disk (`brief.md`, `conversacion.md`, existing deliverables); a fresh run costs a fraction and caches well inside the job |
+| Updating deliverables | Rewrote the file with Write | The task lists which deliverables already exist and asks for targeted `Edit`s; `arquitecto.md` rule 5 says the same | Less output and no lost details |
+| Brief | Written to `brief.md` and also sent in the task, and the Architect was told to read `brief.md` | Sent in the task only; `brief.md` is still saved for reference | Avoids reading it twice |
+| Handoff while a job runs | Refused («ya está trabajando») and the interviewer re-handed later | Queued in `_pending` (`main.py`): deliverables merged, latest brief wins, runs right after the current job; only the last job is announced | Bursts of corrections become one extra job instead of several |
+
+Related: [[03 Agent (agent.md)]]
 
 ## Home buttons and comet cursor (2026-11-09)
 

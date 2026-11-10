@@ -1,6 +1,6 @@
 ---
 tags: [prometeo, agent]
-updated: 2026-11-09
+updated: 2026-11-10
 ---
 # Agent — `agent.md`
 
@@ -69,6 +69,6 @@ The interviewer suggests MCP servers useful for the project (GitHub, Figma, Post
 - Interviewer: `Read`, `Glob` and `encargar_entregables`. Doesn't write.
 - Architect: `Read`, `Write`, `Edit`, `Glob`, `Skill`. No Bash.
 - Both with `cwd` in `projects/<slug>/` and a `PreToolUse` hook that blocks access outside that folder.
-- Each keeps its own session in `meta.json` (`session_id` and `architect_session_id`) so `resume` doesn't mix histories.
+- The interviewer resumes its `session_id` from `meta.json`; the Architect starts a fresh session on every job and works from the files on disk (see [[10 Implementation decisions#Architect token usage (2026-11-10)]]).
 
 Related: [[05 Skills]] · [[10 Implementation decisions]] · [[PROMETEO]]
