@@ -79,6 +79,19 @@ Measured: one project with 4 small re-handoffs (e-mail domain, filter word…) u
 
 Related: [[03 Agent (agent.md)]]
 
+## One Prometeo to the user (2026-11-10)
+The two-agent split stays in the backend, but the user only ever meets **Prometeo**: talking about «el Arquitecto» took personality away from it.
+
+| Where | Change |
+|---|---|
+| `agent/agent.md` | The interviewer never mentions another agent, model or «Arquitecto», even if asked how it works; always first person («lo preparo», «ya lo tienes»). `[sistema: …]` notes are described as its own background work |
+| `agent/arquitecto.md` | The final spoken sentence is written in first person as Prometeo, never naming the Architect |
+| `agent/faqs.md` | «¿Cómo funcionas?» no longer says «somos dos» (its Kokoro audio regenerates because the text hash changes) |
+| Tool texts (`brain.py`, `main.py`) | Handoff description, queue and error messages no longer name the Architect, so the interviewer can't repeat it |
+| UI (`i18n.ts`) | Chat labels: «Preparando entregables», «Prometeo está elaborando los entregables…», «Prometeo no pudo terminar los entregables». Settings: «Modelo para conversar», «Modelo para los entregables», «Esfuerzo en los entregables» (same keys, EN too) |
+
+Internally (code, `arquitecto.md`, this vault) the name «Architect» is kept.
+
 ## Home buttons and comet cursor (2026-11-09)
 
 | Topic | Before | Now | Why |

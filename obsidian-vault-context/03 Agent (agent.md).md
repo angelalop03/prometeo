@@ -4,7 +4,7 @@ updated: 2026-11-10
 ---
 # Agent — `agent.md`
 
-Prometeo is **two agents** that the user perceives as one:
+Prometeo is **two agents** that the user perceives as one. The user never hears about the Architect: Prometeo speaks in first person about everything (see [[10 Implementation decisions#One Prometeo to the user (2026-11-10)]]).
 
 | Agent | File | Default model | What it does |
 |---|---|---|---|
